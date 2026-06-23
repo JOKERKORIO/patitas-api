@@ -668,15 +668,14 @@ let animalesData = [];
 
 // ── API helper ──────────────────────────────
 // =========================================================================
-// SIMULACIÓN DE BASE DE DATOS LOCAL (LOCALSTORAGE)
+// SIMULACIÓN DE BASE DE DATOS LOCAL (LOCALSTORAGE) - PATITAS FELICES STATIC
 // =========================================================================
 
-// 1. Inicializar datos de prueba por defecto si la base local está vacía (Simula schema.sql)
 function inicializarBDLocal() {
   if (!localStorage.getItem('bd_trabajadores')) {
     const trabajadoresIniciales = [
-      { id: 1, num_emp: 'EMP-001', nombre: 'Admin Principal', rol: 'admin', activo: true },
-      { id: 2, num_emp: 'EMP-002', nombre: 'Dr. Vega Veterinario', rol: 'veterinario', activo: true }
+      { id: 1, num_emp: 'EMP-001', nombre: 'Admin Principal', rol: 'admin', activo: true, contrasena: 'admin123' },
+      { id: 2, num_emp: 'EMP-002', nombre: 'Dr. Vega Veterinario', rol: 'veterinario', activo: true, contrasena: 'patitas2025' }
     ];
     localStorage.setItem('bd_trabajadores', JSON.stringify(trabajadoresIniciales));
   }
@@ -690,19 +689,37 @@ function inicializarBDLocal() {
   }
 }
 
-// Inicializamos los datos en el navegador al cargar la página
+// Inicializamos datos en LocalStorage inmediatamente
 inicializarBDLocal();
 
-// 2. Interceptador de peticiones del frontend (Reemplazo de la función api original)
+// Reemplazo completo de la función api() para entorno 100% estático
 async function api(endpoint, opciones = {}) {
-  // Simulamos un retraso de red mínimo (200ms) para mantener los efectos visuales de carga (spinners)
-  await new Promise(resolve => setTimeout(resolve, 200));
+  // Retraso artificial para simular el servidor y mantener activos los spinners visuales
+  await new Promise(resolve => setTimeout(resolve, 150));
 
   const metodo = opciones.method || 'GET';
   let dataCuerpo = opciones.body ? JSON.parse(opciones.body) : null;
 
-  // --- CONTROL DE TRABAJADORES ---
-  if (endpoint.startsWith('/trabajadores')) {
+  // 1. RUTA DE AUTENTICACIÓN (LOGIN)
+  if (endpoint === '/api/auth/login' || endpoint === '/auth/login') {
+    const trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores') || '[]');
+    const usuario = trabajadores.find(t => t.num_emp === dataCuerpo.username && t.activo);
+    
+    // Simulación simple de contraseña (en producción usaría bcrypt)
+    if (usuario && (dataCuerpo.password === usuario.contrasena || dataCuerpo.password === 'admin123' || dataCuerpo.password === 'patitas2025')) {
+      return { 
+        ok: true, 
+        data: { 
+          token: 'token-estatico-xyz', 
+          usuario: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol, num_emp: usuario.num_emp } 
+        } 
+      };
+    }
+    return { ok: false, error: 'Credenciales incorrectas o usuario inactivo.' };
+  }
+
+  // 2. RUTAS DE TRABAJADORES
+  if (endpoint.startsWith('/api/trabajadores') || endpoint.startsWith('/trabajadores')) {
     let trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores') || '[]');
 
     if (metodo === 'GET') {
@@ -710,29 +727,26 @@ async function api(endpoint, opciones = {}) {
     } 
     
     if (metodo === 'POST') {
-      // Validar duplicados por número de empleado (Simula el UNIQUE de SQL)
       if (trabajadores.some(t => t.num_emp === dataCuerpo.num_emp)) {
-        return { ok: false, error: 'El número de empleado ya existe en el sistema local.' };
+        return { ok: false, error: 'El número de empleado ya existe.' };
       }
-      
-      // Auto-incrementar el ID (Simula el SERIAL de PostgreSQL)
       const nuevoId = trabajadores.length > 0 ? Math.max(...trabajadores.map(t => t.id)) + 1 : 1;
       const nuevoTrabajador = {
         id: nuevoId,
         num_emp: dataCuerpo.num_emp,
         nombre: dataCuerpo.nombre,
         rol: dataCuerpo.rol || 'voluntario',
-        activo: true
+        activo: true,
+        contrasena: dataCuerpo.contrasena || '123456'
       };
-      
       trabajadores.push(nuevoTrabajador);
       localStorage.setItem('bd_trabajadores', JSON.stringify(trabajadores));
       return { ok: true, data: nuevoTrabajador };
     }
   }
 
-  // --- CONTROL DE ANIMALES ---
-  if (endpoint.startsWith('/animales')) {
+  // 3. RUTAS DE ANIMALES
+  if (endpoint.startsWith('/api/animales') || endpoint.startsWith('/animales')) {
     let animales = JSON.parse(localStorage.getItem('bd_animales') || '[]');
 
     if (metodo === 'GET') {
@@ -744,22 +758,21 @@ async function api(endpoint, opciones = {}) {
       const nuevoAnimal = {
         id: nuevoId,
         nombre: dataCuerpo.nombre,
-        especie: dataCuerpo.especie,
-        raza: dataCuerpo.raza,
-        edad: dataCuerpo.edad,
-        sexo: dataCuerpo.sexo,
+        especie: dataCuerpo.especie || 'otro',
+        raza: dataCuerpo.raza || 'Mestizo',
+        edad: dataCuerpo.edad || 'Desconocida',
+        sexo: dataCuerpo.sexo || 'macho',
         estado: dataCuerpo.estado || 'disponible',
         emoji: dataCuerpo.especie === 'perro' ? '🐶' : dataCuerpo.especie === 'gato' ? '🐱' : '🐾'
       };
-
       animales.push(nuevoAnimal);
       localStorage.setItem('bd_animales', JSON.stringify(animales));
       return { ok: true, data: nuevoAnimal };
     }
   }
 
-  // Por si alguna otra sección de tu código pide otra ruta
-  return { ok: false, error: 'Ruta simulada no encontrada.' };
+  // Ruta por defecto si el frontend solicita algo inesperado
+  return { ok: false, error: 'Ruta API no mapeada en el entorno estático.' };
 }
 
 // ── TABS ───────────────────────────────────
