@@ -1,12 +1,15 @@
-// server.js — API REST completa para Patitas Felices
+// server.js — API REST completa para Patitas Felices (Producción + Laboratorios)
 require('dotenv').config();
-
 
 const express          = require('express');
 const cors             = require('cors');
 const bcrypt           = require('bcryptjs');
 const multer           = require('multer');
-const db               = require('./db');
+const db               = require('./db'); // Importa tu Pool adaptado para Postgres
+
+// 1. IMPORTAR LOS REPOSITORIOS VULNERABLES DE LAS PRÁCTICAS
+const VulnerableRepository = require('./Boolean-based.js'); // Asegúrate de que el archivo se llame exactamente así
+const OobRepository        = require('./out-base.js'); 
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -15,7 +18,6 @@ const PORT = process.env.PORT || 3000;
 const upload = multer({ storage: multer.memoryStorage() });
 
 // ─── Middlewares ───────────────────────────────────────────
-
 app.use(cors());
 app.use(express.json());
 
@@ -47,7 +49,6 @@ app.get('/', (_req, res) => {
 //  ANIMALES
 // ═══════════════════════════════════════════════════════════
 
-// GET /animales — todos los animales (con filtros opcionales)
 app.get('/animales', async (req, res) => {
   try {
     const { especie, estado } = req.query;
@@ -66,7 +67,6 @@ app.get('/animales', async (req, res) => {
   }
 });
 
-// GET /animales/:id
 app.get('/animales/:id', async (req, res) => {
   try {
     const [rows] = await db.query('SELECT * FROM animales WHERE id = ?', [req.params.id]);
@@ -77,7 +77,6 @@ app.get('/animales/:id', async (req, res) => {
   }
 });
 
-// POST /animales — registrar animal (con foto en Base64/Binario)
 app.post('/animales', soloAdmin, upload.single('foto'), async (req, res) => {
   try {
     const { nombre, especie, raza, edad, sexo, estado, emoji, peso, historia_rescate, foto_url: fotoUrlBody } = req.body;
@@ -85,11 +84,8 @@ app.post('/animales', soloAdmin, upload.single('foto'), async (req, res) => {
 
     let foto_url = fotoUrlBody || null;
 
-    // Si viene un archivo, lo convertimos a cadena binaria Base64
     if (req.file) {
-      // req.file.buffer es el archivo binario crudo en la memoria RAM
       const base64String = req.file.buffer.toString('base64');
-      // Lo empaquetamos en un formato que el HTML pueda leer directamente como imagen
       foto_url = `data:${req.file.mimetype};base64,${base64String}`;
     }
 
@@ -106,7 +102,6 @@ app.post('/animales', soloAdmin, upload.single('foto'), async (req, res) => {
   }
 });
 
-// PUT /animales/:id — editar animal
 app.put('/animales/:id', soloAdmin, async (req, res) => {
   try {
     const { nombre, especie, raza, edad, sexo, estado, emoji, foto_url } = req.body;
@@ -122,7 +117,6 @@ app.put('/animales/:id', soloAdmin, async (req, res) => {
   }
 });
 
-// DELETE /animales/:id
 app.delete('/animales/:id', soloAdmin, async (req, res) => {
   try {
     await db.query('DELETE FROM animales WHERE id = ?', [req.params.id]);
@@ -136,14 +130,12 @@ app.delete('/animales/:id', soloAdmin, async (req, res) => {
 //  ADOPTANTES — Registro y Login
 // ═══════════════════════════════════════════════════════════
 
-// POST /adoptantes/registro — Con validaciones estrictas
 app.post('/adoptantes/registro', async (req, res) => {
   try {
     const { nombre, correo, telefono, contrasena } = req.body;
     if (!nombre || !correo || !telefono || !contrasena)
       return err(res, 'Todos los campos son obligatorios');
 
-    // ─── VALIDACIONES CON EXPRESIONES REGULARES ───
     const regexNombre   = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
     const regexCorreo   = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const regexTelefono = /^\d{10}$/;
@@ -157,7 +149,6 @@ app.post('/adoptantes/registro', async (req, res) => {
     if (contrasena.length < 6)
       return err(res, 'La contraseña debe tener al menos 6 caracteres');
 
-    // Verificar correo único
     const [dup] = await db.query('SELECT id FROM adoptantes WHERE correo = ?', [correo]);
     if (dup.length) return err(res, 'Ya existe una cuenta con ese correo', 409);
 
@@ -178,34 +169,27 @@ app.post('/adoptantes/registro', async (req, res) => {
   }
 });
 
-// POST /adoptantes/login
 app.post('/adoptantes/login', async (req, res) => {
   try {
     const { correo, contrasena } = req.body;
     if (!correo || !contrasena) return err(res, 'Correo y contraseña requeridos');
 
-    // CORRECCIÓN: 'activo = true' para PostgreSQL
-    const [rows] = await db.query(
-      'SELECT * FROM adoptantes WHERE correo = ? AND activo = true', [correo]
-    );
+    const [rows] = await db.query('SELECT * FROM adoptantes WHERE correo = ? AND activo = true', [correo]);
     if (!rows.length) return err(res, 'Credenciales incorrectas', 401);
 
     const coincide = await bcrypt.compare(contrasena, rows[0].contrasena);
     if (!coincide) return err(res, 'Credenciales incorrectas', 401);
 
-    const { contrasena: _, ...usuario } = rows[0]; // quitar hash de la respuesta
+    const { contrasena: _, ...usuario } = rows[0];
     ok(res, { ...usuario, mensaje: '¡Bienvenido!' });
   } catch (e) {
     err(res, e.message, 500);
   }
 });
 
-// GET /adoptantes — listar todos (solo para trabajadores)
 app.get('/adoptantes', async (_req, res) => {
   try {
-    const [rows] = await db.query(
-      'SELECT id, nombre, correo, telefono, activo, creado_en FROM adoptantes ORDER BY creado_en DESC'
-    );
+    const [rows] = await db.query('SELECT id, nombre, correo, telefono, activo, creado_en FROM adoptantes ORDER BY creado_en DESC');
     ok(res, rows);
   } catch (e) {
     err(res, e.message, 500);
@@ -216,16 +200,12 @@ app.get('/adoptantes', async (_req, res) => {
 //  TRABAJADORES — Login
 // ═══════════════════════════════════════════════════════════
 
-// POST /trabajadores/login
 app.post('/trabajadores/login', async (req, res) => {
   try {
     const { num_emp, contrasena } = req.body;
     if (!num_emp || !contrasena) return err(res, 'ID y contraseña requeridos');
 
-    // CORRECCIÓN: 'activo = true' para PostgreSQL
-    const [rows] = await db.query(
-      'SELECT * FROM trabajadores WHERE num_emp = ? AND activo = true', [num_emp]
-    );
+    const [rows] = await db.query('SELECT * FROM trabajadores WHERE num_emp = ? AND activo = true', [num_emp]);
     if (!rows.length) return err(res, 'Credenciales incorrectas', 401);
 
     const coincide = await bcrypt.compare(contrasena, rows[0].contrasena);
@@ -238,12 +218,9 @@ app.post('/trabajadores/login', async (req, res) => {
   }
 });
 
-// GET /trabajadores — listar trabajadores
 app.get('/trabajadores', async (_req, res) => {
   try {
-    const [rows] = await db.query(
-      'SELECT id, num_emp, nombre, rol, activo, creado_en FROM trabajadores ORDER BY id'
-    );
+    const [rows] = await db.query('SELECT id, num_emp, nombre, rol, activo, creado_en FROM trabajadores ORDER BY id');
     ok(res, rows);
   } catch (e) {
     err(res, e.message, 500);
@@ -254,7 +231,6 @@ app.get('/trabajadores', async (_req, res) => {
 //  SOLICITUDES DE ADOPCIÓN
 // ═══════════════════════════════════════════════════════════
 
-// GET /solicitudes — todas las solicitudes con datos de adoptante y animal
 app.get('/solicitudes', async (_req, res) => {
   try {
     const [rows] = await db.query(`
@@ -274,13 +250,11 @@ app.get('/solicitudes', async (_req, res) => {
   }
 });
 
-// POST /solicitudes — crear solicitud
 app.post('/solicitudes', async (req, res) => {
   try {
     const { adoptante_id, animal_id, motivo } = req.body;
     if (!adoptante_id || !animal_id) return err(res, 'adoptante_id y animal_id son obligatorios');
 
-    // Verificar que el animal esté disponible
     const [animal] = await db.query('SELECT estado FROM animales WHERE id = ?', [animal_id]);
     if (!animal.length) return err(res, 'Animal no encontrado', 404);
     if (animal[0].estado !== 'disponible') return err(res, 'El animal no está disponible', 409);
@@ -295,16 +269,13 @@ app.post('/solicitudes', async (req, res) => {
   }
 });
 
-// PUT /solicitudes/:id — cambiar estado (aprobar / rechazar)
 app.put('/solicitudes/:id', async (req, res) => {
   try {
     const { estado } = req.body;
-    if (!['pendiente','aprobada','rechazada'].includes(estado))
-      return err(res, 'Estado inválido');
+    if (!['pendiente','aprobada','rechazada'].includes(estado)) return err(res, 'Estado inválido');
 
     await db.query('UPDATE solicitudes SET estado = ? WHERE id = ?', [estado, req.params.id]);
 
-    // Si se aprueba, marcar animal como adoptado
     if (estado === 'aprobada') {
       const [sol] = await db.query('SELECT animal_id FROM solicitudes WHERE id = ?', [req.params.id]);
       if (sol.length) {
@@ -321,7 +292,6 @@ app.put('/solicitudes/:id', async (req, res) => {
 //  HISTORIAL MÉDICO
 // ═══════════════════════════════════════════════════════════
 
-// GET /historial — todos los registros
 app.get('/historial', async (_req, res) => {
   try {
     const [rows] = await db.query(`
@@ -336,20 +306,15 @@ app.get('/historial', async (_req, res) => {
   }
 });
 
-// GET /historial/:animal_id — historial de un animal específico
 app.get('/historial/:animal_id', async (req, res) => {
   try {
-    const [rows] = await db.query(
-      'SELECT * FROM historial_medico WHERE animal_id = ? ORDER BY fecha DESC',
-      [req.params.animal_id]
-    );
+    const [rows] = await db.query('SELECT * FROM historial_medico WHERE animal_id = ? ORDER BY fecha DESC', [req.params.animal_id]);
     ok(res, rows);
   } catch (e) {
     err(res, e.message, 500);
   }
 });
 
-// POST /historial — nuevo registro médico
 app.post('/historial', async (req, res) => {
   try {
     const { animal_id, tipo, descripcion, veterinario, fecha } = req.body;
@@ -376,7 +341,6 @@ app.get('/stats', async (_req, res) => {
     const [[{ en_tratamiento }]]    = await db.query("SELECT COUNT(*) AS en_tratamiento FROM animales WHERE estado='tratamiento'");
     const [[{ adoptados }]]         = await db.query("SELECT COUNT(*) AS adoptados FROM animales WHERE estado='adoptado'");
     
-    // CORRECCIÓN: 'activo = true' para PostgreSQL
     const [[{ total_adoptantes }]]  = await db.query('SELECT COUNT(*) AS total_adoptantes FROM adoptantes WHERE activo=true');
     const [[{ solicitudes_pend }]]  = await db.query("SELECT COUNT(*) AS solicitudes_pend FROM solicitudes WHERE estado='pendiente'");
     const [[{ solicitudes_total }]] = await db.query('SELECT COUNT(*) AS solicitudes_total FROM solicitudes');
@@ -391,22 +355,17 @@ app.get('/stats', async (_req, res) => {
   }
 });
 
-// POST /trabajadores — Registrar nuevo personal desde el dashboard
 app.post('/trabajadores', soloAdmin, async (req, res) => {
   try {
     const { num_emp, nombre, rol, contrasena } = req.body;
     if (!num_emp || !nombre || !rol || !contrasena) return err(res, 'Todos los campos son obligatorios');
 
-    // ─── VALIDACIONES ───
     const rolesPermitidos = ['admin', 'veterinario', 'voluntario'];
-    if (!rolesPermitidos.includes(rol))
-      return err(res, 'El rol seleccionado no es válido en el sistema');
+    if (!rolesPermitidos.includes(rol)) return err(res, 'El rol seleccionado no es válido en el sistema');
 
     const regexNombre = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;
-    if (!regexNombre.test(nombre))
-      return err(res, 'El nombre del trabajador no debe contener números');
-    if (contrasena.length < 6)
-      return err(res, 'La contraseña debe tener al menos 6 caracteres');
+    if (!regexNombre.test(nombre)) return err(res, 'El nombre del trabajador no debe contener números');
+    if (contrasena.length < 6) return err(res, 'La contraseña debe tener al menos 6 caracteres');
 
     const [dup] = await db.query('SELECT id FROM trabajadores WHERE num_emp = ?', [num_emp]);
     if (dup.length) return err(res, 'Ese número de empleado ya existe', 409);
@@ -422,7 +381,6 @@ app.post('/trabajadores', soloAdmin, async (req, res) => {
   }
 });
 
-// PATCH /animales/:id/estado — Cambiar rápidamente solo el estado del animal
 app.patch('/animales/:id/estado', soloAdmin, async (req, res) => {
   try {
     const { estado } = req.body;
@@ -433,6 +391,41 @@ app.patch('/animales/:id/estado', soloAdmin, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════════════════
+//  RUTAS DE LABORATORIOS VULNERABLES (CIBERSEGURIDAD) 🛡️
+// ═══════════════════════════════════════════════════════════
+
+// Práctica: Boolean-based SQL Injection
+app.post('/api/usuario/verificar', async (req, res) => {
+  const { username } = req.body;
+  if (!username) {
+    return res.status(400).json({ error: 'El campo username es requerido.' });
+  }
+  try {
+    const resultado = await VulnerableRepository.verificarUsuarioExiste(username);
+    return res.status(200).json(resultado);
+  } catch (error) {
+    return res.status(500).json({ error: 'Error en el servidor.' });
+  }
+});
+
+// Práctica: Out-of-Band (OOB) SQL Injection
+app.post('/api/seguridad/historial-oob', async (req, res) => {
+  const { animal_id } = req.body;
+  if (!animal_id) {
+    return res.status(400).json({ error: 'El campo "animal_id" es estrictamente requerido.' });
+  }
+  try {
+    const datos = await OobRepository.buscarHistorialClinico(animal_id);
+    return res.status(200).json({ 
+      status: "Proceso completado", 
+      registros: datos.length 
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Error interno del servidor.' });
+  }
+});
+
 // ─── 404 catch-all ────────────────────────────────────────
 app.use((req, res) => {
   err(res, `Ruta ${req.method} ${req.path} no encontrada`, 404);
@@ -440,73 +433,5 @@ app.use((req, res) => {
 
 // ─── Arrancar servidor ────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`🐾 Patitas Felices API corriendo en http://localhost:${PORT}`);
+  console.log(`🐾 Patitas Felices API corriendo con éxito en http://localhost:${PORT}`);
 });
-// force redeploy mar 19 may 2026 23:27:52 CST
-// force redeploy mar 19 may 2026 23:28:52 CST
-// force redeploy mar 19 may 2026 23:52:40 CST
-// force redeploy mié 20 may 2026 10:34:31 CST
-// server.js
-const express = require('express');
-const app = express();
-
-// 1. IMPORTAR EL REPOSITORIO VULNERABLE
-//const VulnerableRepository = require('Boolean-based.js'); 
-
-//app.use(express.json()); 
-
-
-//app.post('/api/usuario/verificar', async (req, res) => {
-//  const { username } = req.body;
-
-  // Validar que el usuario haya enviado el campo
- // if (!username) {
-  //  return res.status(400).json({ error: 'El campo username es requerido.' });
- // }
-
-//  try {
-    // Ejecutamos la función del repositorio
- //   const resultado = await VulnerableRepository.verificarUsuarioExiste(username);
-    
-    // Respondemos estrictamente con el JSON booleano ({ existe: true/false })
-  //  return res.status(200).json(resultado);
-
-  //} catch (error) {
- //   return res.status(500).json({ error: 'Error en el servidor.' });
- // }
-//});
-
-//// Levantar el servidor local
-//const PORT = process.env.PORT || 3000;
-//app.listen(PORT, () => {
-//  console.log(` Servidor corriendo con éxito en http://localhost:${PORT}`);
-/)});
-
-// =========================================================================
-// (OUT-OF-BAND)
-// =========================================================================
-
-// 1. Importamos el repositorio de Out-of-Band
-//const OobRepository = require('./out-base.js'); 
-
-//app.post('/api/seguridad/historial-oob', async (req, res) => {
- // const { animal_id } = req.body;
-
- // if (!animal_id) {
- //   return res.status(400).json({ error: 'El campo "animal_id" es estrictamente requerido.' });
- // }
-
-  //try {
-    // Ejecutamos la consulta vulnerable
-// const datos = await OobRepository.buscarHistorialClinico(animal_id);
-    
-    
-    //return res.status(200).json({ 
-    //  status: "Proceso completado", 
-   //   registros: datos.length 
-   // });
-
-  //} catch (error) {
- //   return res.status(500).json({ error: 'Error interno del servidor.' });
-  //}
-//});
