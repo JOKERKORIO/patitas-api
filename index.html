@@ -671,7 +671,7 @@ let animalesData = [];
 // SIMULACIÓN DE BASE DE DATOS LOCAL (LOCALSTORAGE)
 // =========================================================================
 
-// 1. Inicializar datos por defecto si el localStorage está vacío (Simula schema.sql)
+// 1. Inicializar datos de prueba por defecto si la base local está vacía (Simula schema.sql)
 function inicializarBDLocal() {
   if (!localStorage.getItem('bd_trabajadores')) {
     const trabajadoresIniciales = [
@@ -690,18 +690,18 @@ function inicializarBDLocal() {
   }
 }
 
-// Ejecutamos la inicialización inmediatamente
+// Inicializamos los datos en el navegador al cargar la página
 inicializarBDLocal();
 
-// 2. Nueva función api() estática que intercepta las llamadas del frontend
+// 2. Interceptador de peticiones del frontend (Reemplazo de la función api original)
 async function api(endpoint, opciones = {}) {
-  // Simulamos un pequeño retraso de red (200ms) para que los spinners de carga funcionen visualmente
+  // Simulamos un retraso de red mínimo (200ms) para mantener los efectos visuales de carga (spinners)
   await new Promise(resolve => setTimeout(resolve, 200));
 
   const metodo = opciones.method || 'GET';
   let dataCuerpo = opciones.body ? JSON.parse(opciones.body) : null;
 
-  // --- RUTAS DE TRABAJADORES ---
+  // --- CONTROL DE TRABAJADORES ---
   if (endpoint.startsWith('/trabajadores')) {
     let trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores') || '[]');
 
@@ -710,10 +710,12 @@ async function api(endpoint, opciones = {}) {
     } 
     
     if (metodo === 'POST') {
+      // Validar duplicados por número de empleado (Simula el UNIQUE de SQL)
       if (trabajadores.some(t => t.num_emp === dataCuerpo.num_emp)) {
-        return { ok: false, error: 'El número de empleado ya existe.' };
+        return { ok: false, error: 'El número de empleado ya existe en el sistema local.' };
       }
       
+      // Auto-incrementar el ID (Simula el SERIAL de PostgreSQL)
       const nuevoId = trabajadores.length > 0 ? Math.max(...trabajadores.map(t => t.id)) + 1 : 1;
       const nuevoTrabajador = {
         id: nuevoId,
@@ -729,7 +731,7 @@ async function api(endpoint, opciones = {}) {
     }
   }
 
-  // --- RUTAS DE ANIMALES ---
+  // --- CONTROL DE ANIMALES ---
   if (endpoint.startsWith('/animales')) {
     let animales = JSON.parse(localStorage.getItem('bd_animales') || '[]');
 
@@ -756,6 +758,7 @@ async function api(endpoint, opciones = {}) {
     }
   }
 
+  // Por si alguna otra sección de tu código pide otra ruta
   return { ok: false, error: 'Ruta simulada no encontrada.' };
 }
 
