@@ -706,6 +706,10 @@ async function api(endpoint, opciones = {}) {
     const usuario = trabajadores.find(t => t.num_emp === dataCuerpo.username && t.activo);
     
     // Simulación simple de contraseña (en producción usaría bcrypt)
+    
+  if (ruta.includes('/auth/login')) {
+     // Simulación simple de contraseña (en producción usaría bcrypt)
+   // Simulación simple de contraseña (en producción usaría bcrypt)
     if (usuario && (dataCuerpo.password === usuario.contrasena || dataCuerpo.password === 'admin123' || dataCuerpo.password === 'patitas2025')) {
       return { 
         ok: true, 
@@ -723,9 +727,12 @@ async function api(endpoint, opciones = {}) {
     let trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores') || '[]');
 
     if (metodo === 'GET') {
+     
       return { ok: true, data: trabajadores };
     } 
+
     
+
     if (metodo === 'POST') {
       if (trabajadores.some(t => t.num_emp === dataCuerpo.num_emp)) {
         return { ok: false, error: 'El número de empleado ya existe.' };
@@ -742,6 +749,7 @@ async function api(endpoint, opciones = {}) {
       trabajadores.push(nuevoTrabajador);
       localStorage.setItem('bd_trabajadores', JSON.stringify(trabajadores));
       return { ok: true, data: nuevoTrabajador };
+      trabajadores.push(nuevoTrabajador);
     }
   }
 
@@ -773,8 +781,12 @@ async function api(endpoint, opciones = {}) {
 
   // Ruta por defecto si el frontend solicita algo inesperado
   return { ok: false, error: 'Ruta API no mapeada en el entorno estático.' };
+
+  // Respuesta comodín exitosa para configuraciones iniciales o estadísticas de salud de la API
+  return { ok: true, data: [] };
 }
 
+  
 // ── TABS ───────────────────────────────────
 function st(k){
   ['a','w'].forEach(x=>{g('t'+x).className='atab';g('p'+x).classList.remove('on');});
