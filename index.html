@@ -668,7 +668,7 @@ let animalesData = [];
 
 // ── API helper ──────────────────────────────
 // =========================================================================
-// SIMULACIÓN DE BASE DE DATOS LOCAL (LOCALSTORAGE) - PATITAS FELICES STATIC
+// SIMULACIÓN DE BASE DE DATOS LOCAL (LOCALSTORAGE) - VERSIÓN ESTÁTICA TOTAL
 // =========================================================================
 
 function inicializarBDLocal() {
@@ -682,111 +682,216 @@ function inicializarBDLocal() {
 
   if (!localStorage.getItem('bd_animales')) {
     const animalesIniciales = [
-      { id: 1, nombre: 'Bruno', especie: 'perro', raza: 'Labrador', edad: '2 años', sexo: 'macho', estado: 'disponible', emoji: '🐶' },
-      { id: 2, nombre: 'Luna', especie: 'gato', raza: 'Siamés', edad: '1 año', sexo: 'hembra', estado: 'disponible', emoji: '🐱' }
+      { id: 1, nombre: 'Bruno', especie: 'perro', raza: 'Labrador', edad: '2 años', sexo: 'macho', estado: 'disponible', emoji: '🐶', peso: '25kg', historia_rescate: 'Encontrado en un parque.' },
+      { id: 2, nombre: 'Luna', especie: 'gato', raza: 'Siamés', edad: '1 año', sexo: 'hembra', estado: 'disponible', emoji: '🐱', peso: '4kg', historia_rescate: 'Rescatada de un tejado.' }
     ];
     localStorage.setItem('bd_animales', JSON.stringify(animalesIniciales));
   }
-}
 
-// Inicializamos datos en LocalStorage inmediatamente
-inicializarBDLocal();
-
-// Reemplazo completo de la función api() para entorno 100% estático
-async function api(endpoint, opciones = {}) {
-  // Retraso artificial para simular el servidor y mantener activos los spinners visuales
-  await new Promise(resolve => setTimeout(resolve, 150));
-
-  const metodo = opciones.method || 'GET';
-  let dataCuerpo = opciones.body ? JSON.parse(opciones.body) : null;
-
-  // 1. RUTA DE AUTENTICACIÓN (LOGIN)
-  if (endpoint === '/api/auth/login' || endpoint === '/auth/login') {
-    const trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores') || '[]');
-    const usuario = trabajadores.find(t => t.num_emp === dataCuerpo.username && t.activo);
-    
-    // Simulación simple de contraseña (en producción usaría bcrypt)
-    
-  if (ruta.includes('/auth/login')) {
-     // Simulación simple de contraseña (en producción usaría bcrypt)
-   // Simulación simple de contraseña (en producción usaría bcrypt)
-    if (usuario && (dataCuerpo.password === usuario.contrasena || dataCuerpo.password === 'admin123' || dataCuerpo.password === 'patitas2025')) {
-      return { 
-        ok: true, 
-        data: { 
-          token: 'token-estatico-xyz', 
-          usuario: { id: usuario.id, nombre: usuario.nombre, rol: usuario.rol, num_emp: usuario.num_emp } 
-        } 
-      };
-    }
-    return { ok: false, error: 'Credenciales incorrectas o usuario inactivo.' };
+  if (!localStorage.getItem('bd_adoptantes')) {
+    localStorage.setItem('bd_adoptantes', JSON.stringify([]));
   }
 
-  // 2. RUTAS DE TRABAJADORES
-  if (endpoint.startsWith('/api/trabajadores') || endpoint.startsWith('/trabajadores')) {
-    let trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores') || '[]');
+  if (!localStorage.getItem('bd_solicitudes')) {
+    localStorage.setItem('bd_solicitudes', JSON.stringify([]));
+  }
 
-    if (metodo === 'GET') {
-     
-      return { ok: true, data: trabajadores };
-    } 
+  if (!localStorage.getItem('bd_historial')) {
+    localStorage.setItem('bd_historial', JSON.stringify([]));
+  }
+}
 
-    
+// Inicialización inmediata al cargar el archivo
+inicializarBDLocal();
 
+// Interceptor global de rutas para entorno Frontend-Only
+async function api(endpoint, opciones = {}) {
+  // Pequeño retraso para que los spinners giren simulando tiempo de carga real
+  await new Promise(resolve => setTimeout(resolve, 100));
+
+  const metodo = opciones.method || 'GET';
+  let dataCuerpo = null;
+  if (opciones.body) {
+    // Si envías FormData (como fotos), simulamos su conversión básica, si no, JSON
+    if (opciones.body instanceof FormData) {
+      dataCuerpo = Object.fromEntries(opciones.body.entries());
+    } else {
+      dataCuerpo = JSON.parse(opciones.body);
+    }
+  }
+
+  // Limpieza de rutas por si se concatena con la constante vacía o localhost
+  let ruta = endpoint.replace('http://localhost:3000', '').replace('http://127.0.0.1:3000', '');
+
+  // 1. ENDPOINT: AUTH / LOGIN TRABAJADORES
+  if (ruta.includes('/trabajadores/login')) {
+    const trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores'));
+    const usuario = trabajadores.find(t => t.num_emp === dataCuerpo.num_emp && t.activo);
+    if (usuario && (dataCuerpo.contrasena === usuario.contrasena || dataCuerpo.contrasena === 'admin123' || dataCuerpo.contrasena === 'patitas2025')) {
+      return { ok: true, data: { id: usuario.id, num_emp: usuario.num_emp, nombre: usuario.nombre, rol: usuario.rol } };
+    }
+    return { ok: false, error: 'Identificación o contraseña incorrectas.' };
+  }
+
+  // 2. ENDPOINT: AUTH / LOGIN ADOPTANTES
+  if (ruta.includes('/adoptantes/login')) {
+    const adoptantes = JSON.parse(localStorage.getItem('bd_adoptantes'));
+    const usuario = adoptantes.find(a => a.correo === dataCuerpo.correo && a.activo);
+    if (usuario) {
+      return { ok: true, data: { id: usuario.id, nombre: usuario.nombre, correo: usuario.correo } };
+    }
+    return { ok: false, error: 'Credenciales de adoptante incorrectas.' };
+  }
+
+  // 3. ENDPOINT: TRABAJADORES
+  if (ruta.includes('/trabajadores')) {
+    let trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores'));
+    if (metodo === 'GET') return { ok: true, data: trabajadores };
     if (metodo === 'POST') {
       if (trabajadores.some(t => t.num_emp === dataCuerpo.num_emp)) {
         return { ok: false, error: 'El número de empleado ya existe.' };
       }
-      const nuevoId = trabajadores.length > 0 ? Math.max(...trabajadores.map(t => t.id)) + 1 : 1;
-      const nuevoTrabajador = {
-        id: nuevoId,
+      const nuevo = {
+        id: trabajadores.length + 1,
         num_emp: dataCuerpo.num_emp,
         nombre: dataCuerpo.nombre,
-        rol: dataCuerpo.rol || 'voluntario',
+        rol: dataCuerpo.rol,
         activo: true,
-        contrasena: dataCuerpo.contrasena || '123456'
+        contrasena: dataCuerpo.contrasena || '123456',
+        creado_en: new Date().toISOString()
       };
-      trabajadores.push(nuevoTrabajador);
+      trabajadores.push(nuevo);
       localStorage.setItem('bd_trabajadores', JSON.stringify(trabajadores));
-      return { ok: true, data: nuevoTrabajador };
-      trabajadores.push(nuevoTrabajador);
+      return { ok: true, data: nuevo };
     }
   }
 
-  // 3. RUTAS DE ANIMALES
-  if (endpoint.startsWith('/api/animales') || endpoint.startsWith('/animales')) {
-    let animales = JSON.parse(localStorage.getItem('bd_animales') || '[]');
-
-    if (metodo === 'GET') {
-      return { ok: true, data: animales };
+  // 4. ENDPOINT: ANIMALES
+  if (ruta.includes('/animales')) {
+    let animales = JSON.parse(localStorage.getItem('bd_animales'));
+    
+    // Si es un cambio de estado específico (/animales/:id/estado)
+    if (ruta.endsWith('/estado') && metodo === 'PATCH') {
+      const parts = ruta.split('/');
+      const idTarget = parseInt(parts[2]);
+      animales = animales.map(a => a.id === idTarget ? { ...a, estado: dataCuerpo.estado } : a);
+      localStorage.setItem('bd_animales', JSON.stringify(animales));
+      return { ok: true, data: { mensaje: 'Estado actualizado' } };
     }
 
+    // Si es una petición individual GET /animales/:id
+    const idMatch = ruta.match(/\/animales\/(\d+)/);
+    if (idMatch && metodo === 'GET') {
+      const animalObj = animales.find(a => a.id === parseInt(idMatch[1]));
+      return animalObj ? { ok: true, data: animalObj } : { ok: false, error: 'No encontrado' };
+    }
+
+    if (metodo === 'GET') return { ok: true, data: animales };
+    
     if (metodo === 'POST') {
-      const nuevoId = animales.length > 0 ? Math.max(...animales.map(t => t.id)) + 1 : 1;
-      const nuevoAnimal = {
-        id: nuevoId,
+      const nuevo = {
+        id: animales.length + 1,
         nombre: dataCuerpo.nombre,
         especie: dataCuerpo.especie || 'otro',
         raza: dataCuerpo.raza || 'Mestizo',
         edad: dataCuerpo.edad || 'Desconocida',
         sexo: dataCuerpo.sexo || 'macho',
         estado: dataCuerpo.estado || 'disponible',
-        emoji: dataCuerpo.especie === 'perro' ? '🐶' : dataCuerpo.especie === 'gato' ? '🐱' : '🐾'
+        peso: dataCuerpo.peso || 'N/A',
+        historia_rescate: dataCuerpo.historia_rescate || '',
+        emoji: dataCuerpo.especie === 'perro' ? '🐶' : dataCuerpo.especie === 'gato' ? '🐱' : '🐾',
+        foto_url: dataCuerpo.foto_url || ''
       };
-      animales.push(nuevoAnimal);
+      animales.push(nuevo);
       localStorage.setItem('bd_animales', JSON.stringify(animales));
-      return { ok: true, data: nuevoAnimal };
+      return { ok: true, data: nuevo };
     }
   }
 
-  // Ruta por defecto si el frontend solicita algo inesperado
-  return { ok: false, error: 'Ruta API no mapeada en el entorno estático.' };
+  // 5. ENDPOINT: ADOPTANTES
+  if (ruta.includes('/adoptantes')) {
+    let adoptantes = JSON.parse(localStorage.getItem('bd_adoptantes'));
+    if (metodo === 'GET') return { ok: true, data: adoptantes };
+    if (metodo === 'POST') {
+      const nuevo = {
+        id: adoptantes.length + 1,
+        nombre: dataCuerpo.nombre,
+        correo: dataCuerpo.correo,
+        telefono: dataCuerpo.telefono,
+        activo: true,
+        creado_en: new Date().toISOString()
+      };
+      adoptantes.push(nuevo);
+      localStorage.setItem('bd_adoptantes', JSON.stringify(adoptantes));
+      return { ok: true, data: nuevo };
+    }
+  }
 
-  // Respuesta comodín exitosa para configuraciones iniciales o estadísticas de salud de la API
+  // 6. ENDPOINT: SOLICITUDES
+  if (ruta.includes('/solicitudes')) {
+    let solicitudes = JSON.parse(localStorage.getItem('bd_solicitudes'));
+    if (metodo === 'GET') return { ok: true, data: solicitudes };
+    if (metodo === 'POST') {
+      const nuevo = {
+        id: solicitudes.length + 1,
+        adoptante_id: dataCuerpo.adoptante_id,
+        animal_id: dataCuerpo.animal_id,
+        motivo: dataCuerpo.motivo || '',
+        estado: 'pendiente',
+        creado_en: new Date().toISOString()
+      };
+      solicitudes.push(nuevo);
+      localStorage.setItem('bd_solicitudes', JSON.stringify(solicitudes));
+      return { ok: true, data: nuevo };
+    }
+  }
+
+  // 7. ENDPOINT: HISTORIAL MÉDICO
+  if (ruta.includes('/historial')) {
+    let historial = JSON.parse(localStorage.getItem('bd_historial'));
+    if (metodo === 'GET') return { ok: true, data: historial };
+    if (metodo === 'POST') {
+      const nuevo = {
+        id: historial.length + 1,
+        animal_id: dataCuerpo.animal_id,
+        tipo: dataCuerpo.tipo || 'revision',
+        descripcion: dataCuerpo.descripcion || '',
+        veterinario: dataCuerpo.veterinario || 'General',
+        fecha: new Date().toISOString().split('T')[0]
+      };
+      historial.push(nuevo);
+      localStorage.setItem('bd_historial', JSON.stringify(historial));
+      return { ok: true, data: nuevo };
+    }
+  }
+
+  // 8. ENDPOINT: PANEL / DASHBOARD STATS (Evita el fallo inicial al cargar)
+  if (ruta.includes('/stats')) {
+    const animales = JSON.parse(localStorage.getItem('bd_animales') || '[]');
+    const adoptantes = JSON.parse(localStorage.getItem('bd_adoptantes') || '[]');
+    const solicitudes = JSON.parse(localStorage.getItem('bd_solicitudes') || '[]');
+
+    return {
+      ok: true,
+      data: {
+        animales: {
+          total: animales.length,
+          disponibles: animales.filter(a => a.estado === 'disponible').length,
+          en_tratamiento: animales.filter(a => a.estado === 'tratamiento').length,
+          adoptados: animales.filter(a => a.estado === 'adoptado').length
+        },
+        adoptantes: adoptantes.length,
+        solicitudes: {
+          pendientes: solicitudes.filter(s => s.estado === 'pendiente').length,
+          total: solicitudes.length
+        }
+      }
+    };
+  }
+
+  // Respuesta por defecto segura
   return { ok: true, data: [] };
-}
-
-  
+} 
 // ── TABS ───────────────────────────────────
 function st(k){
   ['a','w'].forEach(x=>{g('t'+x).className='atab';g('p'+x).classList.remove('on');});
