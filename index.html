@@ -667,24 +667,97 @@ let S = {rol:null,id:null,nombre:null};
 let animalesData = [];
 
 // ── API helper ──────────────────────────────
-async function api(path,o={}){
-  const headers={'Content-Type':'application/json'};
-  if(S.rolTrabajador) headers['x-rol']=S.rolTrabajador;
-  const r = await fetch(API+path,{headers,...o});
-  return r.json();
+// =========================================================================
+// SIMULACIÓN DE BASE DE DATOS LOCAL (LOCALSTORAGE)
+// =========================================================================
+
+// 1. Inicializar datos por defecto si el localStorage está vacío (Simula schema.sql)
+function inicializarBDLocal() {
+  if (!localStorage.getItem('bd_trabajadores')) {
+    const trabajadoresIniciales = [
+      { id: 1, num_emp: 'EMP-001', nombre: 'Admin Principal', rol: 'admin', activo: true },
+      { id: 2, num_emp: 'EMP-002', nombre: 'Dr. Vega Veterinario', rol: 'veterinario', activo: true }
+    ];
+    localStorage.setItem('bd_trabajadores', JSON.stringify(trabajadoresIniciales));
+  }
+
+  if (!localStorage.getItem('bd_animales')) {
+    const animalesIniciales = [
+      { id: 1, nombre: 'Bruno', especie: 'perro', raza: 'Labrador', edad: '2 años', sexo: 'macho', estado: 'disponible', emoji: '🐶' },
+      { id: 2, nombre: 'Luna', especie: 'gato', raza: 'Siamés', edad: '1 año', sexo: 'hembra', estado: 'disponible', emoji: '🐱' }
+    ];
+    localStorage.setItem('bd_animales', JSON.stringify(animalesIniciales));
+  }
 }
-function bl(id,on,txt=''){
-  const b=g(id);if(!b)return;
-  if(on){b.disabled=true;b.dataset.o=b.innerHTML;b.innerHTML=`<span class="spin"></span>${txt||'...'}`;}
-  else{b.disabled=false;b.innerHTML=b.dataset.o||txt;}
+
+// Ejecutamos la inicialización inmediatamente
+inicializarBDLocal();
+
+// 2. Nueva función api() estática que intercepta las llamadas del frontend
+async function api(endpoint, opciones = {}) {
+  // Simulamos un pequeño retraso de red (200ms) para que los spinners de carga funcionen visualmente
+  await new Promise(resolve => setTimeout(resolve, 200));
+
+  const metodo = opciones.method || 'GET';
+  let dataCuerpo = opciones.body ? JSON.parse(opciones.body) : null;
+
+  // --- RUTAS DE TRABAJADORES ---
+  if (endpoint.startsWith('/trabajadores')) {
+    let trabajadores = JSON.parse(localStorage.getItem('bd_trabajadores') || '[]');
+
+    if (metodo === 'GET') {
+      return { ok: true, data: trabajadores };
+    } 
+    
+    if (metodo === 'POST') {
+      if (trabajadores.some(t => t.num_emp === dataCuerpo.num_emp)) {
+        return { ok: false, error: 'El número de empleado ya existe.' };
+      }
+      
+      const nuevoId = trabajadores.length > 0 ? Math.max(...trabajadores.map(t => t.id)) + 1 : 1;
+      const nuevoTrabajador = {
+        id: nuevoId,
+        num_emp: dataCuerpo.num_emp,
+        nombre: dataCuerpo.nombre,
+        rol: dataCuerpo.rol || 'voluntario',
+        activo: true
+      };
+      
+      trabajadores.push(nuevoTrabajador);
+      localStorage.setItem('bd_trabajadores', JSON.stringify(trabajadores));
+      return { ok: true, data: nuevoTrabajador };
+    }
+  }
+
+  // --- RUTAS DE ANIMALES ---
+  if (endpoint.startsWith('/animales')) {
+    let animales = JSON.parse(localStorage.getItem('bd_animales') || '[]');
+
+    if (metodo === 'GET') {
+      return { ok: true, data: animales };
+    }
+
+    if (metodo === 'POST') {
+      const nuevoId = animales.length > 0 ? Math.max(...animales.map(t => t.id)) + 1 : 1;
+      const nuevoAnimal = {
+        id: nuevoId,
+        nombre: dataCuerpo.nombre,
+        especie: dataCuerpo.especie,
+        raza: dataCuerpo.raza,
+        edad: dataCuerpo.edad,
+        sexo: dataCuerpo.sexo,
+        estado: dataCuerpo.estado || 'disponible',
+        emoji: dataCuerpo.especie === 'perro' ? '🐶' : dataCuerpo.especie === 'gato' ? '🐱' : '🐾'
+      };
+
+      animales.push(nuevoAnimal);
+      localStorage.setItem('bd_animales', JSON.stringify(animales));
+      return { ok: true, data: nuevoAnimal };
+    }
+  }
+
+  return { ok: false, error: 'Ruta simulada no encontrada.' };
 }
-function sm(id,txt,t='s'){
-  const e=g(id);if(!e)return;
-  e.className=t==='s'?'smsg':'emsg';e.textContent=txt;e.style.display='block';
-}
-function hm(id){const e=g(id);if(e)e.style.display='none';}
-function elbl(s){return{disponible:'Disponible',tratamiento:'En tratamiento',adoptado:'Adoptado'}[s]||s;}
-function fmt(d){return d?new Date(d).toLocaleDateString('es-MX'):'—';}
 
 // ── TABS ───────────────────────────────────
 function st(k){
