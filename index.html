@@ -657,35 +657,138 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+// ── BASE DE DATOS ESTÁTICA (localStorage) ──
+const DB_KEY = 'pf_db';
 
-let API = localStorage.getItem('pf_api') || 'https://patitas-25ko.onrender.com';
+function dbGet() {
+  const raw = localStorage.getItem(DB_KEY);
+  if (raw) return JSON.parse(raw);
+  // Datos iniciales de ejemplo
+  const init = {
+    animales: [
+      { id: 1, nombre: 'Firulais', especie: 'perro', raza: 'Mestizo', edad: '2 años', sexo: 'macho', estado: 'disponible', emoji: '🐶', foto_url: '' },
+      { id: 2, nombre: 'Michi',    especie: 'gato',  raza: 'Siamés',  edad: '1 año',  sexo: 'hembra', estado: 'disponible', emoji: '🐱', foto_url: '' },
+    ],
+    adoptantes: [],
+    solicitudes: [],
+    trabajadores: [
+      { id: 1, num_emp: 'EMP001', nombre: 'Admin', rol: 'veterinario', contrasena: 'admin123' }
+    ],
+    nextId: { animales: 3, adoptantes: 1, solicitudes: 1, trabajadores: 2 }
+  };
+  localStorage.setItem(DB_KEY, JSON.stringify(init));
+  return init;
+}
 
-const ME = document.getElementById('lmodal');
-const M  = new bootstrap.Modal(ME,{backdrop:'static',keyboard:false});
-const g  = id => document.getElementById(id);
-let S = {rol:null,id:null,nombre:null};
-let animalesData = [];
+function dbSave(db) {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+
+// Simula las rutas de la API
+async function api(ruta, opts = {}) {
+  const db = dbGet();
+  const method = opts.method || 'GET';
+  const body = opts.body ? JSON.parse(opts.body) : null;
+  await new Promise(r => setTimeout(r, 120)); // simula latencia
+
+  // GET /animales
+  if (ruta.startsWith('/animales') && method === 'GET') {
+    let lista = db.animales;
+    if (ruta.includes('estado=disponible')) lista = lista.filter(a => a.estado === 'disponible');
+    return { ok: true, data: lista };
+  }
+  // POST /animales
+  if (ruta === '/animales' && method === 'POST') {
+    const nuevo = { ...body, id: db.nextId.animales++, estado: 'disponible' };
+    db.animales.push(nuevo); dbSave(db);
+    return { ok: true, data: nuevo };
+  }
+  // PATCH /animales/:id/estado
+  if (ruta.match(/\/animales\/\d+\/estado/) && method === 'PATCH') {
+    const id = parseInt(ruta.split('/')[2]);
+    const a = db.animales.find(x => x.id === id);
+    if (!a) return { ok: false, error: 'Animal no encontrado' };
+    a.estado = body.estado; dbSave(db);
+    return { ok: true, data: a };
+  }
+  // GET /stats
+  if (ruta === '/stats') {
+    return { ok: true, data: { animales: {
+      adoptados: db.animales.filter(a => a.estado === 'adoptado').length,
+      disponibles: db.animales.filter(a => a.estado === 'disponible').length
+    }}};
+  }
+  // POST /adoptantes/registro
+  if (ruta === '/adoptantes/registro' && method === 'POST') {
+    if (db.adoptantes.find(a => a.correo === body.correo))
+      return { ok: false, error: 'Correo ya registrado' };
+    const nuevo = { ...body, id: db.nextId.adoptantes++ };
+    db.adoptantes.push(nuevo); dbSave(db);
+    return { ok: true, data: nuevo };
+  }
+  // POST /adoptantes/login
+  if (ruta === '/adoptantes/login' && method === 'POST') {
+    const a = db.adoptantes.find(x => x.correo === body.correo && x.contrasena === body.contrasena);
+    if (!a) return { ok: false, error: 'Credenciales incorrectas' };
+    return { ok: true, data: a };
+  }
+  // POST /trabajadores/login
+  if (ruta === '/trabajadores/login' && method === 'POST') {
+    const t = db.trabajadores.find(x => x.num_emp === body.num_emp && x.contrasena === body.contrasena);
+    if (!t) return { ok: false, error: 'Credenciales incorrectas' };
+    return { ok: true, data: t };
+  }
+  // GET /trabajadores
+  if (ruta === '/trabajadores' && method === 'GET') {
+    return { ok: true, data: db.trabajadores };
+  }
+  // POST /trabajadores
+  if (ruta === '/trabajadores' && method === 'POST') {
+    const nuevo = { ...body, id: db.nextId.trabajadores++ };
+    db.trabajadores.push(nuevo); dbSave(db);
+    return { ok: true, data: nuevo };
+  }
+  // POST /solicitudes
+  if (ruta === '/solicitudes' && method === 'POST') {
+    const nueva = { ...body, id: db.nextId.solicitudes++, estado: 'pendiente', fecha: new Date().toISOString() };
+    db.solicitudes.push(nueva); dbSave(db);
+    return { ok: true, data: nueva };
+  }
+  // GET /solicitudes
+  if (ruta.startsWith('/solicitudes') && method === 'GET') {
+    return { ok: true, data: db.solicitudes };
+  }
+
+  return { ok: false, error: `Ruta no implementada: ${ruta}` };
+}
+//let API = localStorage.getItem('pf_api') || 'https://patitas-25ko.onrender.com';
+
+//const ME = document.getElementById('lmodal');
+//const M  = new bootstrap.Modal(ME,{backdrop:'static',keyboard:false});
+//const g  = id => document.getElementById(id);
+//let S = {rol:null,id:null,nombre:null};
+//let animalesData = [];
 
 // ── API helper ──────────────────────────────
 
-  async function api(path,o={}){
-  const headers={'Content-Type':'application/json'};
-  if(S.rolTrabajador) headers['x-rol']=S.rolTrabajador;
-  const r = await fetch(API+path,{headers,...o});
-  return r.json();
-}
-function bl(id,on,txt=''){
-  const b=g(id);if(!b)return;
-  if(on){b.disabled=true;b.dataset.o=b.innerHTML;b.innerHTML=`<span class="spin"></span>${txt||'...'}`;}
-  else{b.disabled=false;b.innerHTML=b.dataset.o||txt;}
-}
-function sm(id,txt,t='s'){
-  const e=g(id);if(!e)return;
-  e.className=t==='s'?'smsg':'emsg';e.textContent=txt;e.style.display='block';
-}
-function hm(id){const e=g(id);if(e)e.style.display='none';}
-function elbl(s){return{disponible:'Disponible',tratamiento:'En tratamiento',adoptado:'Adoptado'}[s]||s;}
-function fmt(d){return d?new Date(d).toLocaleDateString('es-MX'):'—';}
+ // async function api(path,o={}){
+ // const headers={'Content-Type':'application/json'};
+   // if(S.rolTrabajador) headers['x-rol']=S.rolTrabajador;
+   // const r = await fetch(API+path,{headers,...o});
+  //  return r.json();
+ // }
+ // function bl(id,on,txt=''){
+  //  const b=g(id);if(!b)return;
+   // if(on){b.disabled=true;b.dataset.o=b.innerHTML;b.innerHTML=`<span class="spin"></span>${txt||'...'}`;}
+  //  else{b.disabled=false;b.innerHTML=b.dataset.o||txt;}
+ // }
+ // function sm(id,txt,t='s'){
+   // const e=g(id);if(!e)return;
+  //  e.className=t==='s'?'smsg':'emsg';e.textContent=txt;e.style.display='block';
+ // }
+// function hm(id){const e=g(id);if(e)e.style.display='none';}
+// function elbl(s){return{disponible:'Disponible',tratamiento:'En tratamiento',adoptado:'Adoptado'}[s]||s;}
+// function fmt(d){return d?new Date(d).toLocaleDateString('es-MX'):'—';}
 
 
   
