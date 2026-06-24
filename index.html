@@ -658,6 +658,13 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ── BASE DE DATOS ESTÁTICA (localStorage) ──
+  const ME = document.getElementById('lmodal');
+const M  = new bootstrap.Modal(ME,{backdrop:'static',keyboard:false});
+const g  = id => document.getElementById(id);
+let S = {rol:null,id:null,nombre:null};
+let animalesData = [];
+
+  
 const DB_KEY = 'pf_db';
 
 function dbGet() {
