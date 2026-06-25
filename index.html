@@ -590,9 +590,20 @@
               <div class="col-12"><label class="flabel">Estado inicial</label><select id="aEst" class="finput"><option value="disponible">Disponible</option><option value="tratamiento">En tratamiento</option></select></div>
               <div class="col-12"><label class="flabel">Historia de rescate</label><textarea id="aHist" class="finput" placeholder="¿Dónde fue encontrado? ¿Cómo llegó al refugio?..."></textarea></div>
               <div class="col-12"><label class="flabel">Peso</label><input type="text" id="aPes" class="finput" placeholder="Ej. 4.5 kg"></div>
-              <div class="col-12"><label class="flabel">Foto del animal</label>
-                <input type="file" id="aFoto" class="finput" accept="image/*">
-                <small style="color:var(--txt-3);font-size:.73rem">Opcional. Formatos: JPG, PNG, WEBP.</small>
+              <div class="col-12">
+                <label class="flabel">Foto del animal (Google Drive)</label>
+                <input type="text" id="aFoto" class="finput" placeholder="Pega aquí el link de Google Drive..." oninput="previsualizarFoto(this)">
+                <div style="margin-top:8px;padding:10px 13px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);font-size:.76rem;color:var(--txt-2);line-height:1.7;">
+                  <strong style="color:var(--txt-1)">¿Cómo obtener el link?</strong><br>
+                  1. Sube la foto a <strong>Google Drive</strong><br>
+                  2. Clic derecho → <em>Obtener enlace</em><br>
+                  3. Cambia acceso a <strong>"Cualquier persona con el enlace"</strong><br>
+                  4. Copia y pega el link aquí ↑
+                </div>
+                <div id="fotoPreview" style="display:none;margin-top:10px;">
+                  <img id="fotoPreviewImg" style="width:100%;max-height:180px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--line);">
+                  <div id="fotoPesoAviso" style="font-size:.73rem;margin-top:4px;"></div>
+                </div>
               </div>
             </div>
             <button class="btn btn-v w-100 py-2 mt-3" id="bAReg" onclick="saveAdmAnimal()"><i class="bi bi-plus-circle me-2"></i>Registrar animal</button>
@@ -658,25 +669,110 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 
-  //version estática 
-  
-//let API = localStorage.getItem('pf_api') || 'https://patitas-25ko.onrender.com';
+// ══════════════════════════════════════════════
+// BASE DE DATOS ESTÁTICA (localStorage)
+// ══════════════════════════════════════════════
 
-const ME = document.getElementById('lmodal');
-const M  = new bootstrap.Modal(ME,{backdrop:'static',keyboard:false});
-const g  = id => document.getElementById(id);
-let S = {rol:null,id:null,nombre:null};
-let animalesData = [];
-  
-  const ME = document.getElementById('lmodal');
-coanimales.filter(a => a.estado === 'disponible').length
-    }}};
+const DB_KEY = 'pf_db';
+
+const DB_INICIAL = {
+  nextId: { animales: 10, adoptantes: 4, solicitudes: 4, trabajadores: 4, historial: 4 },
+  animales: [
+    { id:1, nombre:'Luna',    especie:'perro', raza:'Labrador',       edad:'2 años',   sexo:'hembra',      estado:'disponible',  emoji:'🐕', foto_url:null, ingreso_en:'2025-01-10T10:00:00Z', historia_rescate:'Encontrada en la colonia Doctores, muy amigable y juguetona.', peso:'18 kg' },
+    { id:2, nombre:'Michi',   especie:'gato',  raza:'Siamés',         edad:'1 año',    sexo:'macho',       estado:'disponible',  emoji:'🐱', foto_url:null, ingreso_en:'2025-02-14T10:00:00Z', historia_rescate:'Rescatado de la calle en Tlalpan. Le encantan los rincones soleados.', peso:'3.5 kg' },
+    { id:3, nombre:'Paco',    especie:'ave',   raza:'Periquito',      edad:'6 meses',  sexo:'macho',       estado:'disponible',  emoji:'🦜', foto_url:null, ingreso_en:'2025-03-01T10:00:00Z', historia_rescate:'Entregado por su dueño anterior que se mudó al extranjero.', peso:'0.1 kg' },
+    { id:4, nombre:'Rocky',   especie:'perro', raza:'Pastor Alemán',  edad:'4 años',   sexo:'macho',       estado:'tratamiento', emoji:'🐶', foto_url:null, ingreso_en:'2025-01-20T10:00:00Z', historia_rescate:'Rescatado con una pata lastimada. En recuperación veterinaria.', peso:'32 kg' },
+    { id:5, nombre:'Canela',  especie:'perro', raza:'Mestiza',        edad:'3 años',   sexo:'hembra',      estado:'adoptado',    emoji:'🐕', foto_url:null, ingreso_en:'2024-11-05T10:00:00Z', historia_rescate:'Adoptada por la familia Ramírez. Muy feliz en su nuevo hogar.', peso:'14 kg' },
+    { id:6, nombre:'Noche',   especie:'gato',  raza:'Negro común',    edad:'2 años',   sexo:'hembra',      estado:'disponible',  emoji:'🐈‍⬛', foto_url:null, ingreso_en:'2025-04-02T10:00:00Z', historia_rescate:'Llegó sola al refugio una noche lluviosa. Muy tranquila y cariñosa.', peso:'4 kg' },
+    { id:7, nombre:'Toby',    especie:'perro', raza:'Beagle',         edad:'5 años',   sexo:'macho',       estado:'disponible',  emoji:'🐕', foto_url:null, ingreso_en:'2025-03-18T10:00:00Z', historia_rescate:'Entregado por una familia que se mudó a un departamento pequeño.', peso:'12 kg' },
+    { id:8, nombre:'Kiwi',    especie:'ave',   raza:'Agaporni',       edad:'8 meses',  sexo:'desconocido', estado:'disponible',  emoji:'🦜', foto_url:null, ingreso_en:'2025-04-10T10:00:00Z', historia_rescate:'Encontrado en una jaula abandonada cerca del mercado.', peso:'0.08 kg' },
+    { id:9, nombre:'Manchas', especie:'gato',  raza:'Atigrado',       edad:'3 años',   sexo:'macho',       estado:'tratamiento', emoji:'🐱', foto_url:null, ingreso_en:'2025-04-15T10:00:00Z', historia_rescate:'Ingresó con desnutrición. En proceso de recuperación y ganando peso.', peso:'2.8 kg' },
+  ],
+  adoptantes: [
+    { id:1, nombre:'María García',    correo:'maria@mail.com',   telefono:'5511223344', contrasena:'123456', activo:true, creado_en:'2025-01-15T10:00:00Z' },
+    { id:2, nombre:'Juan Pérez',      correo:'juan@mail.com',    telefono:'5599887766', contrasena:'123456', activo:true, creado_en:'2025-02-20T10:00:00Z' },
+    { id:3, nombre:'Ana Rodríguez',   correo:'ana@mail.com',     telefono:'5544332211', contrasena:'123456', activo:true, creado_en:'2025-03-05T10:00:00Z' },
+  ],
+  trabajadores: [
+    { id:1, num_emp:'EMP-001', nombre:'Gudiño Luna Josué',    rol:'admin',       contrasena:'admin123' },
+    { id:2, num_emp:'EMP-002', nombre:'Mendoza Nieto Oscar',  rol:'veterinario', contrasena:'vet123'   },
+    { id:3, num_emp:'EMP-003', nombre:'Avila Mendoza Natalia',rol:'voluntario',  contrasena:'vol123'   },
+  ],
+  solicitudes: [
+    { id:1, adoptante_id:1, adoptante_nombre:'María García',  adoptante_correo:'maria@mail.com', animal_id:1, animal_nombre:'Luna',  animal_emoji:'🐕', especie:'perro', motivo:'Tengo jardín grande y mucho amor para dar.', estado:'pendiente',  creado_en:'2025-04-20T10:00:00Z' },
+    { id:2, adoptante_id:2, adoptante_nombre:'Juan Pérez',    adoptante_correo:'juan@mail.com',  animal_id:2, animal_nombre:'Michi', animal_emoji:'🐱', especie:'gato',  motivo:'Vivo solo y quiero compañía en casa.', estado:'aprobada',   creado_en:'2025-04-18T10:00:00Z' },
+    { id:3, adoptante_id:3, adoptante_nombre:'Ana Rodríguez', adoptante_correo:'ana@mail.com',   animal_id:6, animal_nombre:'Noche', animal_emoji:'🐈‍⬛', especie:'gato',  motivo:'Siempre quise un gato negro, son especiales.', estado:'pendiente',  creado_en:'2025-04-22T10:00:00Z' },
+  ],
+  historial: [
+    { id:1, animal_id:4, animal_nombre:'Rocky',   emoji:'🐶', tipo:'cirugia',         fecha:'2025-03-10', veterinario:'Dr. Vega',    descripcion:'Cirugía de pata delantera izquierda.' },
+    { id:2, animal_id:9, animal_nombre:'Manchas', emoji:'🐱', tipo:'revision',         fecha:'2025-04-16', veterinario:'Dra. Soto',   descripcion:'Revisión general, plan de alimentación especial.' },
+    { id:3, animal_id:1, animal_nombre:'Luna',    emoji:'🐕', tipo:'vacuna',           fecha:'2025-02-01', veterinario:'Dr. Vega',    descripcion:'Vacuna antirrábica anual.' },
+    { id:4, animal_id:2, animal_nombre:'Michi',   emoji:'🐱', tipo:'desparasitacion',  fecha:'2025-03-05', veterinario:'Dra. Soto',   descripcion:'Desparasitación interna y externa.' },
+  ],
+};
+
+function dbLoad() {
+  try { return JSON.parse(localStorage.getItem(DB_KEY)) || JSON.parse(JSON.stringify(DB_INICIAL)); }
+  catch { return JSON.parse(JSON.stringify(DB_INICIAL)); }
+}
+function dbSave(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+
+// ── API MOCK (simula fetch al servidor) ──────
+async function api(path, o = {}) {
+  await new Promise(r => setTimeout(r, 80)); // simula latencia mínima
+  const method = (o.method || 'GET').toUpperCase();
+  const body   = o.body ? JSON.parse(o.body) : null;
+  const ruta   = path.split('?')[0];
+  const db     = dbLoad();
+
+  // GET /animales
+  if (ruta === '/animales' && method === 'GET') {
+    const params = new URLSearchParams(path.includes('?') ? path.split('?')[1] : '');
+    const est = params.get('estado');
+    const data = est ? db.animales.filter(a => a.estado === est) : db.animales;
+    return { ok: true, data };
+  }
+  // POST /animales
+  if (ruta === '/animales' && method === 'POST') {
+    const nuevo = { ...body, id: db.nextId.animales++, ingreso_en: new Date().toISOString(), foto_url: null };
+    db.animales.push(nuevo); dbSave(db);
+    return { ok: true, data: nuevo };
+  }
+  // DELETE /animales/:id
+  if (ruta.startsWith('/animales/') && ruta.split('/').length === 3 && method === 'DELETE') {
+    const id = parseInt(ruta.split('/')[2]);
+    db.animales = db.animales.filter(a => a.id !== id); dbSave(db);
+    return { ok: true };
+  }
+  // PATCH /animales/:id/estado
+  if (ruta.match(/^\/animales\/\d+\/estado$/) && method === 'PATCH') {
+    const id = parseInt(ruta.split('/')[2]);
+    const a = db.animales.find(x => x.id === id);
+    if (!a) return { ok: false, error: 'Animal no encontrado' };
+    a.estado = body.estado; dbSave(db);
+    return { ok: true, data: a };
+  }
+  // GET /stats
+  if (ruta === '/stats' && method === 'GET') {
+    return { ok: true, data: {
+      animales: {
+        total:       db.animales.length,
+        disponibles: db.animales.filter(a => a.estado === 'disponible').length,
+        adoptados:   db.animales.filter(a => a.estado === 'adoptado').length,
+        tratamiento: db.animales.filter(a => a.estado === 'tratamiento').length,
+      },
+      solicitudes: {
+        total:      db.solicitudes.length,
+        pendientes: db.solicitudes.filter(s => s.estado === 'pendiente').length,
+      },
+      adoptantes: db.adoptantes.length,
+    }};
   }
   // POST /adoptantes/registro
   if (ruta === '/adoptantes/registro' && method === 'POST') {
     if (db.adoptantes.find(a => a.correo === body.correo))
       return { ok: false, error: 'Correo ya registrado' };
-    const nuevo = { ...body, id: db.nextId.adoptantes++ };
+    const nuevo = { ...body, id: db.nextId.adoptantes++, activo: true, creado_en: new Date().toISOString() };
     db.adoptantes.push(nuevo); dbSave(db);
     return { ok: true, data: nuevo };
   }
@@ -685,6 +781,10 @@ coanimales.filter(a => a.estado === 'disponible').length
     const a = db.adoptantes.find(x => x.correo === body.correo && x.contrasena === body.contrasena);
     if (!a) return { ok: false, error: 'Credenciales incorrectas' };
     return { ok: true, data: a };
+  }
+  // GET /adoptantes
+  if (ruta === '/adoptantes' && method === 'GET') {
+    return { ok: true, data: db.adoptantes };
   }
   // POST /trabajadores/login
   if (ruta === '/trabajadores/login' && method === 'POST') {
@@ -702,50 +802,76 @@ coanimales.filter(a => a.estado === 'disponible').length
     db.trabajadores.push(nuevo); dbSave(db);
     return { ok: true, data: nuevo };
   }
-  // POST /solicitudes
-  if (ruta === '/solicitudes' && method === 'POST') {
-    const nueva = { ...body, id: db.nextId.solicitudes++, estado: 'pendiente', fecha: new Date().toISOString() };
-    db.solicitudes.push(nueva); dbSave(db);
-    return { ok: true, data: nueva };
-  }
   // GET /solicitudes
   if (ruta.startsWith('/solicitudes') && method === 'GET') {
     return { ok: true, data: db.solicitudes };
   }
+  // POST /solicitudes
+  if (ruta === '/solicitudes' && method === 'POST') {
+    const adoptante = db.adoptantes.find(a => a.id === body.adoptante_id);
+    const animal    = db.animales.find(a => a.id === body.animal_id);
+    if (!animal) return { ok: false, error: 'Animal no encontrado' };
+    const nueva = {
+      ...body,
+      id: db.nextId.solicitudes++,
+      estado: 'pendiente',
+      creado_en: new Date().toISOString(),
+      adoptante_nombre: adoptante?.nombre || 'Desconocido',
+      adoptante_correo: adoptante?.correo || '',
+      animal_nombre: animal.nombre,
+      animal_emoji:  animal.emoji || '🐾',
+      especie: animal.especie,
+    };
+    db.solicitudes.push(nueva); dbSave(db);
+    return { ok: true, data: nueva };
+  }
+  // PUT /solicitudes/:id
+  if (ruta.match(/^\/solicitudes\/\d+$/) && method === 'PUT') {
+    const id = parseInt(ruta.split('/')[2]);
+    const s  = db.solicitudes.find(x => x.id === id);
+    if (!s) return { ok: false, error: 'Solicitud no encontrada' };
+    s.estado = body.estado;
+    if (body.estado === 'aprobada') {
+      const animal = db.animales.find(a => a.id === s.animal_id);
+      if (animal) animal.estado = 'adoptado';
+    }
+    dbSave(db);
+    return { ok: true, data: s };
+  }
+  // GET /historial
+  if (ruta === '/historial' && method === 'GET') {
+    return { ok: true, data: db.historial };
+  }
+  // POST /historial
+  if (ruta === '/historial' && method === 'POST') {
+    const animal = db.animales.find(a => a.id === body.animal_id);
+    const nuevo  = { ...body, id: db.nextId.historial++, animal_nombre: animal?.nombre || '?', emoji: animal?.emoji || '🐾' };
+    db.historial.unshift(nuevo); dbSave(db);
+    return { ok: true, data: nuevo };
+  }
 
   return { ok: false, error: `Ruta no implementada: ${ruta}` };
-  }
-  
-// ── BASE DE DATOS ESTÁTICA (localStorage) ──
-  
-//let API = localStorage.getItem('pf_api') || 'https://patitas-25ko.onrender.com';
+}
 
-//const ME = document.getElementById('lmodal');
-//const M  = new bootstrap.Modal(ME,{backdrop:'static',keyboard:false});
-//const g  = id => document.getElementById(id);
-//let S = {rol:null,id:null,nombre:null};
-//let animalesData = [];
+// ── HELPERS ──────────────────────────────────
+const ME = document.getElementById('lmodal');
+const M  = new bootstrap.Modal(ME, { backdrop: 'static', keyboard: false });
+const g  = id => document.getElementById(id);
+let S = { rol: null, id: null, nombre: null };
+let animalesData = [];
 
-// ── API helper ──────────────────────────────
-
- // async function api(path,o={}){
- // const headers={'Content-Type':'application/json'};
-   // if(S.rolTrabajador) headers['x-rol']=S.rolTrabajador;
-   // const r = await fetch(API+path,{headers,...o});
-  //  return r.json();
- // }
- // function bl(id,on,txt=''){
-  //  const b=g(id);if(!b)return;
-   // if(on){b.disabled=true;b.dataset.o=b.innerHTML;b.innerHTML=`<span class="spin"></span>${txt||'...'}`;}
-  //  else{b.disabled=false;b.innerHTML=b.dataset.o||txt;}
- // }
- // function sm(id,txt,t='s'){
-   // const e=g(id);if(!e)return;
-  //  e.className=t==='s'?'smsg':'emsg';e.textContent=txt;e.style.display='block';
- // }
-// function hm(id){const e=g(id);if(e)e.style.display='none';}
-// function elbl(s){return{disponible:'Disponible',tratamiento:'En tratamiento',adoptado:'Adoptado'}[s]||s;}
-// function fmt(d){return d?new Date(d).toLocaleDateString('es-MX'):'—';}
+function bl(id, on, txt = '') {
+  const b = g(id); if (!b) return;
+  if (on) { b.disabled = true; b.dataset.o = b.innerHTML; b.innerHTML = `<span class="spin"></span>${txt || '...'}`; }
+  else    { b.disabled = false; b.innerHTML = b.dataset.o || txt; }
+}
+function sm(id, txt, t = 's') {
+  const e = g(id); if (!e) return;
+  e.className = t === 's' ? 'smsg' : 'emsg'; e.textContent = txt; e.style.display = 'block';
+}
+function hm(id) { const e = g(id); if (e) e.style.display = 'none'; }
+function elbl(s) { return { disponible: 'Disponible', tratamiento: 'En tratamiento', adoptado: 'Adoptado' }[s] || s; }
+function fmt(d)  { return d ? new Date(d).toLocaleDateString('es-MX') : '—'; }
 
 
   
@@ -1044,7 +1170,6 @@ function goAdm(){
   g('pmain').style.display='none';g('padmin').style.display='block';
   g('abadge').textContent='🩺 '+S.nombre;
   g('aFecha').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-  g('cfgUrl').value=API;
   loadDash();window.scrollTo(0,0);
 }
 function goMain(){g('pmain').style.display='block';g('padmin').style.display='none';window.scrollTo(0,0);}
@@ -1194,42 +1319,96 @@ async function loadAdmList(){
   }catch{ul.innerHTML='<li class="lempty">Error de conexión.</li>';}
 }
 
+// ── FOTO GOOGLE DRIVE ────────────────────────
+// Convierte cualquier link de Google Drive al formato directo de imagen
+let fotoBase64 = null; // renombrado internamente pero ahora guarda la URL directa
+
+function driveUrlDirecta(url) {
+  // Formato largo: https://drive.google.com/file/d/ID/view?usp=sharing
+  let m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+
+  // Formato corto: https://drive.google.com/open?id=ID
+  m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+
+  // Si ya es una URL directa o de otro servicio, la devolvemos tal cual
+  if (url.startsWith('http')) return url;
+
+  return null;
+}
+
+function previsualizarFoto(input) {
+  const url = input.value.trim();
+  const preview  = g('fotoPreview');
+  const imgEl    = g('fotoPreviewImg');
+  const aviso    = g('fotoPesoAviso');
+
+  if (!url) {
+    fotoBase64 = null;
+    preview.style.display = 'none';
+    return;
+  }
+
+  const directa = driveUrlDirecta(url);
+  if (!directa) {
+    fotoBase64 = null;
+    preview.style.display = 'none';
+    aviso.textContent = '⚠️ Link no reconocido. Asegúrate de copiar el link de Google Drive.';
+    aviso.style.color = 'var(--tierra)';
+    preview.style.display = 'block';
+    imgEl.style.display = 'none';
+    return;
+  }
+
+  fotoBase64 = directa; // guardamos la URL convertida
+  imgEl.src = directa;
+  imgEl.style.display = 'block';
+  imgEl.onerror = () => {
+    aviso.textContent = '⚠️ No se pudo cargar la imagen. Verifica que el archivo sea público en Drive.';
+    aviso.style.color = 'var(--tierra)';
+    imgEl.style.display = 'none';
+  };
+  imgEl.onload = () => {
+    aviso.textContent = '✓ Imagen cargada correctamente desde Google Drive.';
+    aviso.style.color = 'var(--verde)';
+  };
+  preview.style.display = 'block';
+}
+
 async function saveAdmAnimal(){
   const n=g('aNom').value.trim();
   hm('okAReg');hm('erAReg');
   if(!n){sm('erAReg','El nombre es obligatorio.','e');return;}
   bl('bAReg',true,'Registrando...');
   try{
-    // FormData en lugar de JSON para poder enviar el archivo de foto
-    const fd = new FormData();
-    fd.append('nombre',      n);
-    fd.append('especie',     g('aEsp').value);
-    fd.append('raza',        g('aRaz').value);
-    fd.append('edad',        g('aEd').value);
-    fd.append('sexo',        g('aSex').value);
-    fd.append('estado',          g('aEst').value);
-    fd.append('historia_rescate', g('aHist').value);
-    fd.append('peso',             g('aPes').value);
-    fd.append('emoji',            g('aEmo').value || '🐾');
-
-    const archivo = g('aFoto').files[0];
-    if (archivo) fd.append('foto', archivo);
-
-    // Sin Content-Type: el navegador lo pone solo con el boundary correcto
-    const resp = await fetch(API + '/animales', { method: 'POST', body: fd });
-    const data = await resp.json();
-
-    if(!resp.ok){ sm('erAReg', data.error || 'Error al registrar.', 'e'); return; }
+    const body = JSON.stringify({
+      nombre:           n,
+      especie:          g('aEsp').value,
+      raza:             g('aRaz').value,
+      edad:             g('aEd').value,
+      sexo:             g('aSex').value,
+      estado:           g('aEst').value,
+      historia_rescate: g('aHist').value,
+      peso:             g('aPes').value,
+      emoji:            g('aEmo').value || '🐾',
+      foto_url:         fotoBase64 || null,   // ← aquí va el Base64
+    });
+    const r = await api('/animales', { method: 'POST', body });
+    if(!r.ok){ sm('erAReg', r.error || 'Error al registrar.', 'e'); return; }
     sm('okAReg','✓ Animal registrado correctamente.');
     ['aNom','aRaz','aEd','aHist','aPes','aEmo'].forEach(x=>g(x).value='');
     g('aFoto').value = '';
+    fotoBase64 = null;
+    g('fotoPreview').style.display = 'none';
+    g('fotoPesoAviso').textContent = '';
     loadAdmList(); loadAnimales();
-  }catch{ sm('erAReg','Error de conexión.','e'); }
+  }catch(e){ sm('erAReg','Error: ' + e.message,'e'); }
   finally{ bl('bAReg',false); }
 }
 
 async function loadCfg(){
-  g('cfgUrl').value=API;
+  g('cfgUrl').value='[Modo estático — sin servidor]';
   try{
     const r=await api('/trabajadores');
     const lp=g('lPersonal');
@@ -1240,11 +1419,7 @@ async function loadCfg(){
 }
 
 function saveUrl(){
-  const u=g('cfgUrl').value.trim().replace(/\/$/,'');
-  if(!u)return;
-  API=u;localStorage.setItem('pf_api',u);
-  sm('okCfg','✓ URL actualizada. Recargando datos...');
-  setTimeout(()=>{loadAnimales();loadStats();},500);
+  sm('okCfg','✓ Modo estático activo. No se necesita URL de servidor.');
 }
 
 async function darDeAltaAnimal(idAnimal, btn) {
