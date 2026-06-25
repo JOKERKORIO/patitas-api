@@ -673,13 +673,13 @@
 // BASE DE DATOS ESTÁTICA (localStorage)
 // ══════════════════════════════════════════════
 
-const DB_KEY = 'pf_db';
-const DB_VERSION = 2; // ← de 1 a 2
+const DB_KEY     = 'pf_db';
+const DB_VERSION = 5; // ← Sube este número cada vez que cambies datos en DB_INICIAL
 
 const DB_INICIAL = {
-  nextId: { animales: 10, adoptantes: 4, solicitudes: 4, trabajadores: 4, historial: 4 },
+  nextId: { animales: 10, adoptantes: 4, solicitudes: 4, trabajadores: 6, historial: 4 },
   animales: [
-    { id:1, nombre:'Luna',    especie:'perro', raza:'Labrador',       edad:'2 años',   sexo:'hembra',      estado:'disponible',  emoji:'🐕', foto_url:'https://lh3.googleusercontent.com/d/1OC_GzrBiNf1_o6UxLEvYfKojc4yqf6n0', historia_rescate:'Encontrada en la colonia Doctores, muy amigable y juguetona.', peso:'18 kg' },
+    { id:1, nombre:'Luna',    especie:'perro', raza:'Labrador',       edad:'2 años',   sexo:'hembra',      estado:'disponible',  emoji:'🐕', foto_url:'https://drive.google.com/file/d/1OC_GzrBiNf1_o6UxLEvYfKojc4yqf6n0/view?usp=drivesdk', ingreso_en:'2025-01-10T10:00:00Z', historia_rescate:'Encontrada en la colonia Doctores, muy amigable y juguetona.', peso:'18 kg' },
     { id:2, nombre:'Michi',   especie:'gato',  raza:'Siamés',         edad:'1 año',    sexo:'macho',       estado:'disponible',  emoji:'🐱', foto_url:null, ingreso_en:'2025-02-14T10:00:00Z', historia_rescate:'Rescatado de la calle en Tlalpan. Le encantan los rincones soleados.', peso:'3.5 kg' },
     { id:3, nombre:'Paco',    especie:'ave',   raza:'Periquito',      edad:'6 meses',  sexo:'macho',       estado:'disponible',  emoji:'🦜', foto_url:null, ingreso_en:'2025-03-01T10:00:00Z', historia_rescate:'Entregado por su dueño anterior que se mudó al extranjero.', peso:'0.1 kg' },
     { id:4, nombre:'Rocky',   especie:'perro', raza:'Pastor Alemán',  edad:'4 años',   sexo:'macho',       estado:'tratamiento', emoji:'🐶', foto_url:null, ingreso_en:'2025-01-20T10:00:00Z', historia_rescate:'Rescatado con una pata lastimada. En recuperación veterinaria.', peso:'32 kg' },
@@ -695,9 +695,11 @@ const DB_INICIAL = {
     { id:3, nombre:'Ana Rodríguez',   correo:'ana@mail.com',     telefono:'5544332211', contrasena:'123456', activo:true, creado_en:'2025-03-05T10:00:00Z' },
   ],
   trabajadores: [
-    { id:1, num_emp:'EMP-001', nombre:'Gudiño Luna Josué',    rol:'admin',       contrasena:'admin123' },
-    { id:2, num_emp:'EMP-002', nombre:'Mendoza Nieto Oscar',  rol:'veterinario', contrasena:'vet123'   },
-    { id:3, num_emp:'EMP-003', nombre:'Avila Mendoza Natalia',rol:'voluntario',  contrasena:'vol123'   },
+    { id:1, num_emp:'EMP-001', nombre:'Gudiño Luna Josué',         rol:'admin', contrasena:'admin123' },
+    { id:4, num_emp:'EMP-005', nombre:'Chocolate',                  rol:'visor', contrasena:'123456'   },
+    { id:2, num_emp:'EMP-002', nombre:'Josué Gudiño Luna',          rol:'admin', contrasena:'josue22'  },
+    { id:3, num_emp:'EMP-003', nombre:'Oscar Osvaldo Mendoza Nieto',rol:'admin', contrasena:'oscar23'  },
+    { id:5, num_emp:'EMP-004', nombre:'Natalia Avila Mendoza',      rol:'admin', contrasena:'natalia12'},
   ],
   solicitudes: [
     { id:1, adoptante_id:1, adoptante_nombre:'María García',  adoptante_correo:'maria@mail.com', animal_id:1, animal_nombre:'Luna',  animal_emoji:'🐕', especie:'perro', motivo:'Tengo jardín grande y mucho amor para dar.', estado:'pendiente',  creado_en:'2025-04-20T10:00:00Z' },
@@ -713,10 +715,26 @@ const DB_INICIAL = {
 };
 
 function dbLoad() {
-  try { return JSON.parse(localStorage.getItem(DB_KEY)) || JSON.parse(JSON.stringify(DB_INICIAL)); }
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (!raw) return JSON.parse(JSON.stringify(DB_INICIAL));
+    const db = JSON.parse(raw);
+    // Si la versión guardada es distinta, resetear con los datos nuevos
+    if (db.__version !== DB_VERSION) {
+      console.log('[PatitasFelices] Nueva versión detectada (' + DB_VERSION + '). Actualizando datos...');
+      const nuevo = JSON.parse(JSON.stringify(DB_INICIAL));
+      nuevo.__version = DB_VERSION;
+      localStorage.setItem(DB_KEY, JSON.stringify(nuevo));
+      return nuevo;
+    }
+    return db;
+  }
   catch { return JSON.parse(JSON.stringify(DB_INICIAL)); }
 }
-function dbSave(db) { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+function dbSave(db) {
+  db.__version = DB_VERSION; // siempre guardamos la versión actual
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
 
 // ── API MOCK (simula fetch al servidor) ──────
 async function api(path, o = {}) {
@@ -1169,8 +1187,23 @@ async function regAnimal(){
 // ── ADMIN ────────────────────────────────────
 function goAdm(){
   g('pmain').style.display='none';g('padmin').style.display='block';
-  g('abadge').textContent='🩺 '+S.nombre;
+  const esVisor = S.rolTrabajador === 'visor';
+  g('abadge').textContent=(esVisor?'👁️ ':'🩺 ')+S.nombre;
   g('aFecha').textContent=new Date().toLocaleDateString('es-MX',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  // Banner de solo lectura
+  let banner = g('visor-banner');
+  if(!banner){
+    banner = document.createElement('div');
+    banner.id = 'visor-banner';
+    banner.style.cssText='display:none;margin:0 26px 16px;padding:10px 15px;background:rgba(139,96,68,.12);border:1px solid rgba(139,96,68,.3);border-radius:var(--radius);color:var(--tierra);font-size:.83rem;';
+    banner.innerHTML='<i class="bi bi-eye me-2"></i><strong>Modo solo lectura.</strong> Tu cuenta no puede realizar cambios.';
+    g('ap-dash').parentElement.insertBefore(banner, g('ap-dash'));
+  }
+  banner.style.display = esVisor ? 'block' : 'none';
+  // Ocultar sección "Registrar animal" del sidebar para visor
+  document.querySelectorAll('.snb').forEach(b=>{
+    if(b.textContent.includes('Registrar animal')) b.style.display = esVisor ? 'none' : '';
+  });
   loadDash();window.scrollTo(0,0);
 }
 function goMain(){g('pmain').style.display='block';g('padmin').style.display='none';window.scrollTo(0,0);}
@@ -1220,14 +1253,17 @@ async function loadSolic(){
       <td style="font-size:.82rem;color:var(--txt-2);max-width:180px">${s.motivo||'<em style="color:var(--txt-3)">Sin motivo</em>'}</td>
       <td>${fmt(s.creado_en)}</td>
       <td><span class="tag tag-${s.estado}">${s.estado}</span></td>
-      <td>${s.estado==='pendiente'
-        ?`<button class="btn btn-v btn-sm me-1" onclick="cambSolic(${s.id},'aprobada',this)">Aprobar</button><button class="btn btn-ov btn-sm" onclick="cambSolic(${s.id},'rechazada',this)">Rechazar</button>`
-        :`<button class="btn btn-ov btn-sm" disabled>Procesada</button>`}
+      <td>${S.rolTrabajador==='visor'
+        ?`<span class="badge bg-secondary" style="font-size:.7rem">Solo lectura</span>`
+        :s.estado==='pendiente'
+          ?`<button class="btn btn-v btn-sm me-1" onclick="cambSolic(${s.id},'aprobada',this)">Aprobar</button><button class="btn btn-ov btn-sm" onclick="cambSolic(${s.id},'rechazada',this)">Rechazar</button>`
+          :`<button class="btn btn-ov btn-sm" disabled>Procesada</button>`}
       </td></tr>`).join('');
   }catch{tb.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--tierra);padding:20px">Error cargando.</td></tr>';}
 }
 
 async function cambSolic(id,estado,btn){
+  if(S.rolTrabajador==='visor'){alert('Tu cuenta es de solo lectura.');return;}
   btn.disabled=true;btn.textContent='...';
   try{const r=await api(`/solicitudes/${id}`,{method:'PUT',body:JSON.stringify({estado})});if(r.ok)loadSolic();}
   catch{btn.disabled=false;}
@@ -1245,7 +1281,7 @@ async function loadAnimAdm(){
       <td><span class="tag tag-${a.estado}">${elbl(a.estado)}</span></td>
       <td style="font-size:.78rem;color:var(--txt-3)">${fmt(a.ingreso_en)}</td>
       <td style="display:flex;gap:5px;align-items:center">
-        ${S.rolTrabajador==='admin'?`
+        ${(S.rolTrabajador==='admin')?`
           ${a.estado==='tratamiento'?`<button class="btn btn-v btn-sm" onclick="darDeAltaAnimal(${a.id},this)" title="Marcar como disponible"><i class="bi bi-check-circle me-1"></i>Alta</button>`:''}
           <button class="btn btn-ov btn-sm" onclick="delAnimal(${a.id},'${a.nombre}',this)"><i class="bi bi-trash"></i></button>
         `:'<span class="badge bg-secondary" style="font-size:.7rem">Solo lectura</span>'}
@@ -1255,6 +1291,7 @@ async function loadAnimAdm(){
 }
 
 async function delAnimal(id,nom,btn){
+  if(S.rolTrabajador==='visor'){alert('Tu cuenta es de solo lectura.');return;}
   if(!confirm(`¿Eliminar a ${nom}?`))return;
   btn.disabled=true;
   try{await api(`/animales/${id}`,{method:'DELETE'});loadAnimAdm();loadAnimales();}
@@ -1295,6 +1332,7 @@ async function loadHist(){
 }
 
 async function saveMed(){
+  if(S.rolTrabajador==='visor'){sm('erMed','Tu cuenta es de solo lectura.','e');return;}
   hm('okMed');hm('erMed');
   const body={animal_id:parseInt(g('mAnim').value),tipo:g('mTipo').value,veterinario:g('mVet').value,fecha:g('mFech').value,descripcion:g('mNota').value};
   if(!body.animal_id){sm('erMed','Selecciona un animal.','e');return;}
@@ -1378,6 +1416,7 @@ function previsualizarFoto(input) {
 }
 
 async function saveAdmAnimal(){
+  if(S.rolTrabajador==='visor'){sm('erAReg','Tu cuenta es de solo lectura.','e');return;}
   const n=g('aNom').value.trim();
   hm('okAReg');hm('erAReg');
   if(!n){sm('erAReg','El nombre es obligatorio.','e');return;}
@@ -1508,3 +1547,4 @@ window.onload=()=>{
 </script>
 </body>
 </html>
+
