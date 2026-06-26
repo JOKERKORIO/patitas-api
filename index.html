@@ -578,6 +578,52 @@
       <div class="apanel" id="ap-regadm">
         <h2 style="font-size:1.7rem;margin-bottom:4px">Registrar nuevo animal</h2>
         <p style="font-size:.83rem;margin-bottom:18px">Agrega un animal al sistema del refugio</p>
+
+        <!-- ── Guía de imágenes ── -->
+        <div style="margin-bottom:22px;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
+          <div style="padding:11px 16px;background:var(--bg-2);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="toggleGuiaFoto()">
+            <span style="font-size:1rem;">📸</span>
+            <strong style="font-size:.85rem;color:var(--txt-1)">¿Cómo agregar la foto del animal?</strong>
+            <span id="guiaFotoArrow" style="margin-left:auto;font-size:.8rem;color:var(--txt-3)">▼ Ver instrucciones</span>
+          </div>
+          <div id="guiaFotoBody" style="display:none;padding:14px 16px;font-size:.8rem;color:var(--txt-2);line-height:1.8;">
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <!-- Opción A -->
+              <div style="padding:12px;background:rgba(74,130,82,.07);border:1px solid rgba(74,130,82,.2);border-radius:var(--radius);">
+                <div style="font-weight:700;color:var(--verde);margin-bottom:6px;">⭐ Opción A — ImgBB</div>
+                <div style="font-size:.75rem;color:var(--txt-3);margin-bottom:8px;">Recomendada · Se ve en todas las PCs</div>
+                <ol style="margin:0;padding-left:16px;line-height:2;">
+                  <li>Entra a <strong>imgbb.com</strong></li>
+                  <li>Arrastra o selecciona la foto</li>
+                  <li>Clic en <strong>"Upload"</strong></li>
+                  <li>Copia el <strong>"Direct link"</strong><br>
+                    <span style="font-size:.72rem;color:var(--txt-3)">Empieza con https://i.ibb.co/...</span>
+                  </li>
+                  <li>Pégalo en <strong>"🔗 Pegar link"</strong> abajo</li>
+                </ol>
+              </div>
+              <!-- Opción B -->
+              <div style="padding:12px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);">
+                <div style="font-weight:700;color:var(--txt-1);margin-bottom:6px;">📁 Opción B — Desde tu PC</div>
+                <div style="font-size:.75rem;color:var(--txt-3);margin-bottom:8px;">Rápida · Solo se ve en esta computadora</div>
+                <ol style="margin:0;padding-left:16px;line-height:2;">
+                  <li>Clic en <strong>"📁 Subir desde mi PC"</strong></li>
+                  <li>Selecciona la foto</li>
+                  <li>Verás la vista previa</li>
+                  <li>Registra el animal normalmente</li>
+                </ol>
+                <div style="margin-top:8px;padding:6px 8px;background:rgba(139,96,68,.1);border-radius:6px;font-size:.72rem;color:var(--tierra);">
+                  ⚠️ Otras PCs no verán esta foto.<br>Usa ImgBB si necesitas que todos la vean.
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;padding:10px 12px;background:var(--bg-2);border-left:3px solid var(--verde);border-radius:0 var(--radius) var(--radius) 0;font-size:.76rem;">
+              <strong>💡 Consejo:</strong> En ImgBB no necesitas crear cuenta. Solo entra, sube y copia el Direct link. ¡Es gratis y tarda menos de un minuto!
+            </div>
+          </div>
+        </div>
         <div class="row g-4">
           <div class="col-lg-7"><div class="apicard">
             <div class="row g-3">
@@ -591,15 +637,35 @@
               <div class="col-12"><label class="flabel">Historia de rescate</label><textarea id="aHist" class="finput" placeholder="¿Dónde fue encontrado? ¿Cómo llegó al refugio?..."></textarea></div>
               <div class="col-12"><label class="flabel">Peso</label><input type="text" id="aPes" class="finput" placeholder="Ej. 4.5 kg"></div>
               <div class="col-12">
-                <label class="flabel">Foto del animal (Google Drive)</label>
-                <input type="text" id="aFoto" class="finput" placeholder="Pega aquí el link de Google Drive..." oninput="previsualizarFoto(this)">
-                <div style="margin-top:8px;padding:10px 13px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);font-size:.76rem;color:var(--txt-2);line-height:1.7;">
-                  <strong style="color:var(--txt-1)">¿Cómo obtener el link?</strong><br>
-                  1. Sube la foto a <strong>Google Drive</strong><br>
-                  2. Clic derecho → <em>Obtener enlace</em><br>
-                  3. Cambia acceso a <strong>"Cualquier persona con el enlace"</strong><br>
-                  4. Copia y pega el link aquí ↑
+                <label class="flabel">Foto del animal</label>
+                <!-- Tabs: subir archivo o pegar link -->
+                <div style="display:flex;gap:6px;margin-bottom:8px;">
+                  <button type="button" id="tabArchivo" onclick="switchFotoTab('archivo')"
+                    style="flex:1;padding:6px;border-radius:var(--radius);border:1px solid var(--verde);background:var(--verde);color:#fff;font-size:.78rem;cursor:pointer;">
+                    📁 Subir desde mi PC
+                  </button>
+                  <button type="button" id="tabLink" onclick="switchFotoTab('link')"
+                    style="flex:1;padding:6px;border-radius:var(--radius);border:1px solid var(--line);background:var(--bg-2);color:var(--txt-2);font-size:.78rem;cursor:pointer;">
+                    🔗 Pegar link (ImgBB/Drive)
+                  </button>
                 </div>
+                <!-- Opción 1: subir archivo -->
+                <div id="panelArchivo">
+                  <input type="file" id="aFotoArchivo" class="finput" accept="image/*" onchange="previsualizarArchivo(this)">
+                  <small style="color:var(--txt-3);font-size:.72rem;">
+                    Sube la foto → se convertirá automáticamente para subirse a ImgBB.<br>
+                    O súbela tú mismo en <strong>imgbb.com</strong> y usa la pestaña de link.
+                  </small>
+                </div>
+                <!-- Opción 2: pegar link -->
+                <div id="panelLink" style="display:none;">
+                  <input type="text" id="aFotoLink" class="finput" placeholder="https://i.ibb.co/... o link de Google Drive" oninput="previsualizarLink(this)">
+                  <div style="margin-top:6px;padding:9px 12px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--radius);font-size:.73rem;color:var(--txt-2);line-height:1.6;">
+                    <strong style="color:var(--txt-1)">⭐ ImgBB (recomendado):</strong> imgbb.com → subir → copiar "Direct link"<br>
+                    <strong style="color:var(--txt-1)">Google Drive:</strong> compartir → "Cualquier persona" → copiar link
+                  </div>
+                </div>
+                <!-- Preview compartido -->
                 <div id="fotoPreview" style="display:none;margin-top:10px;">
                   <img id="fotoPreviewImg" style="width:100%;max-height:180px;object-fit:cover;border-radius:var(--radius);border:1px solid var(--line);">
                   <div id="fotoPesoAviso" style="font-size:.73rem;margin-top:4px;"></div>
@@ -674,20 +740,20 @@
 // ══════════════════════════════════════════════
 
 const DB_KEY     = 'pf_db';
-const DB_VERSION = 6; // ← Incrementado a 6 para limpiar el caché e insertar las fotos nuevas
+const DB_VERSION = 10; // ← Sube este número cada vez que cambies datos en DB_INICIAL
 
 const DB_INICIAL = {
-  nextId: { animales: 10, adoptantes: 4, solicitudes: 4, trabajadores: 6, historial: 4 },
+  nextId: { animales: 10, adoptantes: 4, solicitudes: 4, trabajadores: 7, historial: 4 },
   animales: [
-    { id:1, nombre:'Luna',    especie:'perro', raza:'Labrador',       edad:'2 años',   sexo:'hembra',      estado:'disponible',  emoji:'🐕', foto_url:'https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=600&q=80', ingreso_en:'2025-01-10T10:00:00Z', historia_rescate:'Encontrada en la colonia Doctores, muy amigable y juguetona.', peso:'18 kg' },
-    { id:2, nombre:'Michi',   especie:'gato',  raza:'Siamés',         edad:'1 año',    sexo:'macho',       estado:'disponible',  emoji:'🐱', foto_url:'https://images.unsplash.com/photo-1592194996308-7b43878e84a6?auto=format&fit=crop&w=600&q=80', ingreso_en:'2025-02-14T10:00:00Z', historia_rescate:'Rescatado de la calle en Tlalpan. Le encantan los rincones soleados.', peso:'3.5 kg' },
-    { id:3, nombre:'Paco',    especie:'ave',   raza:'Periquito',      edad:'6 meses',  sexo:'macho',       estado:'disponible',  emoji:'🦜', foto_url:'https://cdn.pixabay.com/photo/2019/01/04/23/32/parakeet-english-3914319_960_720.jpg', ingreso_en:'2025-03-01T10:00:00Z', historia_rescate:'Entregado por su dueño anterior que se mudó al extranjero.', peso:'0.1 kg' },
-    { id:4, nombre:'Rocky',   especie:'perro', raza:'Pastor Alemán',  edad:'4 años',   sexo:'macho',       estado:'tratamiento', emoji:'🐶', foto_url:'https://images.unsplash.com/photo-1589941013453-ec89f33b5e95?auto=format&fit=crop&w=600&q=80', ingreso_en:'2025-01-20T10:00:00Z', historia_rescate:'Rescatado con una pata lastimada. En recuperación veterinaria.', peso:'32 kg' },
-    { id:5, nombre:'Canela',  especie:'perro', raza:'Mestiza',        edad:'3 años',   sexo:'hembra',      estado:'adoptado',    emoji:'🐕', foto_url:'https://images.unsplash.com/photo-1583511655857-d19b40a7a54e?auto=format&fit=crop&w=600&q=80', ingreso_en:'2024-11-05T10:00:00Z', historia_rescate:'Adoptada por la familia Ramírez. Muy feliz en su nuevo hogar.', peso:'14 kg' },
-    { id:6, nombre:'Noche',   especie:'gato',  raza:'Negro común',    edad:'2 años',   sexo:'hembra',      estado:'disponible',  emoji:'🐈‍⬛', foto_url:'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=600&q=80', ingreso_en:'2025-04-02T10:00:00Z', historia_rescate:'Llegó sola al refugio una noche lluviosa. Muy tranquila y cariñosa.', peso:'4 kg' },
-    { id:7, nombre:'Toby',    especie:'perro', raza:'Beagle',         edad:'5 años',   sexo:'macho',       estado:'disponible',  emoji:'🐕', foto_url:'https://static.wixstatic.com/media/d1fede_2dc368cd7f71463cafdc05fc55d630c2~mv2.jpg/v1/fill/w_511,h_720,al_c,q_85,enc_avif,quality_auto/d1fede_2dc368cd7f71463cafdc05fc55d630c2~mv2.jpg', ingreso_en:'2025-03-18T10:00:00Z', historia_rescate:'Entregado por una familia que se mudó a un departamento pequeño.', peso:'12 kg' },
-    { id:8, nombre:'Kiwi',    especie:'ave',   raza:'Agaporni',       edad:'8 meses',  sexo:'desconocido', estado:'disponible',  emoji:'🦜', foto_url:'https://nubika.es/_ipx/f_webp&q_80&s_377x189/https://cdn.nubika.es/wp-content/uploads/2022/07/tipos-agapornis.jpg', ingreso_en:'2025-04-10T10:00:00Z', historia_rescate:'Encontrado en una jaula abandonada cerca del mercado.', peso:'0.08 kg' },
-    { id:9, nombre:'Manchas', especie:'gato',  raza:'Atigrado',       edad:'3 años',   sexo:'macho',       estado:'tratamiento', emoji:'🐱', foto_url:'https://images.unsplash.com/photo-1533738363-b7f9aef128ce?auto=format&fit=crop&w=600&q=80', ingreso_en:'2025-04-15T10:00:00Z', historia_rescate:'Ingresó con desnutrición. En proceso de recuperación y ganando peso.', peso:'2.8 kg' },
+    { id:1, nombre:'Luna',    especie:'perro', raza:'Labrador',       edad:'2 años',   sexo:'hembra',      estado:'disponible',  emoji:'🐕', foto_url:'https://i.ibb.co/sdWvQF1r/sitesdefaultfilesstylessquare-medium-440x440public2022-07-Retriever2028-Labrador292.jpg', ingreso_en:'2025-01-10T10:00:00Z', historia_rescate:'Encontrada en la colonia Doctores, muy amigable y juguetona.', peso:'18 kg' },
+    { id:2, nombre:'Michi',   especie:'gato',  raza:'Siamés',         edad:'1 año',    sexo:'macho',       estado:'disponible',  emoji:'🐱', foto_url:null, ingreso_en:'2025-02-14T10:00:00Z', historia_rescate:'Rescatado de la calle en Tlalpan. Le encantan los rincones soleados.', peso:'3.5 kg' },
+    { id:3, nombre:'Paco',    especie:'ave',   raza:'Periquito',      edad:'6 meses',  sexo:'macho',       estado:'disponible',  emoji:'🦜', foto_url:null, ingreso_en:'2025-03-01T10:00:00Z', historia_rescate:'Entregado por su dueño anterior que se mudó al extranjero.', peso:'0.1 kg' },
+    { id:4, nombre:'Rocky',   especie:'perro', raza:'Pastor Alemán',  edad:'4 años',   sexo:'macho',       estado:'tratamiento', emoji:'🐶', foto_url:null, ingreso_en:'2025-01-20T10:00:00Z', historia_rescate:'Rescatado con una pata lastimada. En recuperación veterinaria.', peso:'32 kg' },
+    { id:5, nombre:'Canela',  especie:'perro', raza:'Mestiza',        edad:'3 años',   sexo:'hembra',      estado:'adoptado',    emoji:'🐕', foto_url:null, ingreso_en:'2024-11-05T10:00:00Z', historia_rescate:'Adoptada por la familia Ramírez. Muy feliz en su nuevo hogar.', peso:'14 kg' },
+    { id:6, nombre:'Noche',   especie:'gato',  raza:'Negro común',    edad:'2 años',   sexo:'hembra',      estado:'disponible',  emoji:'🐈‍⬛', foto_url:null, ingreso_en:'2025-04-02T10:00:00Z', historia_rescate:'Llegó sola al refugio una noche lluviosa. Muy tranquila y cariñosa.', peso:'4 kg' },
+    { id:7, nombre:'Toby',    especie:'perro', raza:'Beagle',         edad:'5 años',   sexo:'macho',       estado:'disponible',  emoji:'🐕', foto_url:null, ingreso_en:'2025-03-18T10:00:00Z', historia_rescate:'Entregado por una familia que se mudó a un departamento pequeño.', peso:'12 kg' },
+    { id:8, nombre:'Kiwi',    especie:'ave',   raza:'Agaporni',       edad:'8 meses',  sexo:'desconocido', estado:'disponible',  emoji:'🦜', foto_url:null, ingreso_en:'2025-04-10T10:00:00Z', historia_rescate:'Encontrado en una jaula abandonada cerca del mercado.', peso:'0.08 kg' },
+    { id:9, nombre:'Manchas', especie:'gato',  raza:'Atigrado',       edad:'3 años',   sexo:'macho',       estado:'tratamiento', emoji:'🐱', foto_url:null, ingreso_en:'2025-04-15T10:00:00Z', historia_rescate:'Ingresó con desnutrición. En proceso de recuperación y ganando peso.', peso:'2.8 kg' },
   ],
   adoptantes: [
     { id:1, nombre:'María García',    correo:'maria@mail.com',   telefono:'5511223344', contrasena:'123456', activo:true, creado_en:'2025-01-15T10:00:00Z' },
@@ -700,6 +766,7 @@ const DB_INICIAL = {
     { id:2, num_emp:'EMP-002', nombre:'Josué Gudiño Luna',          rol:'admin', contrasena:'josue22'  },
     { id:3, num_emp:'EMP-003', nombre:'Oscar Osvaldo Mendoza Nieto',rol:'admin', contrasena:'oscar23'  },
     { id:5, num_emp:'EMP-004', nombre:'Natalia Avila Mendoza',      rol:'admin', contrasena:'natalia12'},
+    { id:6, num_emp:'MON-001', nombre:'Chocolate',                  rol:'visor', contrasena:'123456'   },
   ],
   solicitudes: [
     { id:1, adoptante_id:1, adoptante_nombre:'María García',  adoptante_correo:'maria@mail.com', animal_id:1, animal_nombre:'Luna',  animal_emoji:'🐕', especie:'perro', motivo:'Tengo jardín grande y mucho amor para dar.', estado:'pendiente',  creado_en:'2025-04-20T10:00:00Z' },
@@ -1358,61 +1425,147 @@ async function loadAdmList(){
   }catch{ul.innerHTML='<li class="lempty">Error de conexión.</li>';}
 }
 
-// ── FOTO GOOGLE DRIVE ────────────────────────
-// Convierte cualquier link de Google Drive al formato directo de imagen
-let fotoBase64 = null; // renombrado internamente pero ahora guarda la URL directa
-
-function driveUrlDirecta(url) {
-  // Formato largo: https://drive.google.com/file/d/ID/view?usp=sharing
-  let m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
-  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
-
-  // Formato corto: https://drive.google.com/open?id=ID
-  m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
-
-  // Si ya es una URL directa o de otro servicio, la devolvemos tal cual
-  if (url.startsWith('http')) return url;
-
-  return null;
+// ── GUÍA DE FOTO ─────────────────────────────
+function toggleGuiaFoto() {
+  const body  = g('guiaFotoBody');
+  const arrow = g('guiaFotoArrow');
+  const abierto = body.style.display !== 'none';
+  body.style.display  = abierto ? 'none' : 'block';
+  arrow.textContent   = abierto ? '▼ Ver instrucciones' : '▲ Ocultar instrucciones';
 }
 
-function previsualizarFoto(input) {
-  const url = input.value.trim();
-  const preview  = g('fotoPreview');
-  const imgEl    = g('fotoPreviewImg');
-  const aviso    = g('fotoPesoAviso');
+// ── FOTO: TABS, ARCHIVO Y LINK ───────────────
+let fotoBase64 = null; // guarda la URL final (ImgBB direct link o Drive thumbnail)
+let modoFotoTab = 'archivo'; // 'archivo' | 'link'
 
-  if (!url) {
-    fotoBase64 = null;
-    preview.style.display = 'none';
-    return;
+function switchFotoTab(tab) {
+  modoFotoTab = tab;
+  fotoBase64  = null;
+  g('fotoPreview').style.display = 'none';
+
+  const esArchivo = tab === 'archivo';
+  g('panelArchivo').style.display = esArchivo ? 'block' : 'none';
+  g('panelLink').style.display    = esArchivo ? 'none'  : 'block';
+
+  // Estilos botones
+  const activo   = 'flex:1;padding:6px;border-radius:var(--radius);border:1px solid var(--verde);background:var(--verde);color:#fff;font-size:.78rem;cursor:pointer;';
+  const inactivo = 'flex:1;padding:6px;border-radius:var(--radius);border:1px solid var(--line);background:var(--bg-2);color:var(--txt-2);font-size:.78rem;cursor:pointer;';
+  g('tabArchivo').style.cssText = esArchivo ? activo : inactivo;
+  g('tabLink').style.cssText    = esArchivo ? inactivo : activo;
+
+  if (esArchivo) { g('aFotoArchivo').value = ''; }
+  else           { g('aFotoLink').value    = ''; }
+}
+
+// ── Tab archivo: convierte a Base64 y muestra preview
+function previsualizarArchivo(input) {
+  const archivo = input.files[0];
+  const aviso   = g('fotoPesoAviso');
+  const imgEl   = g('fotoPreviewImg');
+  const preview = g('fotoPreview');
+
+  if (!archivo) { fotoBase64 = null; preview.style.display = 'none'; return; }
+
+  const mb = archivo.size / 1024 / 1024;
+  aviso.textContent = mb > 1
+    ? '⚠️ Imagen grande (' + mb.toFixed(1) + ' MB). Se comprimirá automáticamente.'
+    : '✓ ' + (mb * 1024).toFixed(0) + ' KB — tamaño aceptable.';
+  aviso.style.color = mb > 1 ? 'var(--tierra)' : 'var(--verde)';
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const dataUrl = e.target.result;
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const maxW   = 800;
+      const scale  = Math.min(1, maxW / img.width);
+      canvas.width  = img.width  * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      fotoBase64 = canvas.toDataURL('image/jpeg', 0.78);
+      imgEl.src  = fotoBase64;
+      imgEl.style.display = 'block';
+      preview.style.display = 'block';
+      const kb = Math.round(fotoBase64.length * 0.75 / 1024);
+      aviso.textContent = '✓ Lista (' + kb + ' KB). Se guardará con el animal.';
+      aviso.style.color = 'var(--verde)';
+    };
+    img.src = dataUrl;
+  };
+  reader.readAsDataURL(archivo);
+}
+
+function resolverUrlFoto(url) {
+  if (!url || !url.startsWith('http')) return null;
+
+  // ImgBB — link de vista: https://ibb.co/xxx o https://imgbb.com/...
+  // El direct link de ImgBB ya termina en .jpg/.png, lo usamos directo
+  if (url.includes('ibb.co') || url.includes('imgbb.com')) {
+    // Si es direct link (contiene extensión), usarlo directo
+    if (url.match(/\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i)) return url;
+    // Si es link de vista, no podemos convertirlo automáticamente
+    return url; // intentar igual, puede funcionar
   }
 
-  const directa = driveUrlDirecta(url);
+  // Google Drive — formato largo: /file/d/ID/view
+  let m = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (m) return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w800';
+
+  // Google Drive — formato corto: ?id=ID
+  m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (m) return 'https://drive.google.com/thumbnail?id=' + m[1] + '&sz=w800';
+
+  // Cualquier otra URL directa de imagen
+  return url;
+}
+
+function detectarServicio(url) {
+  if (url.includes('ibb.co') || url.includes('imgbb.com')) return 'ImgBB';
+  if (url.includes('drive.google.com') || url.includes('googleusercontent.com')) return 'Google Drive';
+  if (url.includes('imgur.com')) return 'Imgur';
+  return 'imagen';
+}
+
+function previsualizarLink(input) {
+  const url     = input.value.trim();
+  const preview = g('fotoPreview');
+  const imgEl   = g('fotoPreviewImg');
+  const aviso   = g('fotoPesoAviso');
+
+  if (!url) { fotoBase64 = null; preview.style.display = 'none'; return; }
+
+  const directa = resolverUrlFoto(url);
   if (!directa) {
     fotoBase64 = null;
-    preview.style.display = 'none';
-    aviso.textContent = '⚠️ Link no reconocido. Asegúrate de copiar el link de Google Drive.';
+    aviso.textContent = '⚠️ Link no reconocido. Usa ImgBB (recomendado) o Google Drive.';
     aviso.style.color = 'var(--tierra)';
-    preview.style.display = 'block';
     imgEl.style.display = 'none';
+    preview.style.display = 'block';
     return;
   }
 
-  fotoBase64 = directa; // guardamos la URL convertida
-  imgEl.src = directa;
+  fotoBase64 = directa;
+  imgEl.src  = directa;
   imgEl.style.display = 'block';
+  preview.style.display = 'block';
+  aviso.textContent = 'Cargando imagen...';
+  aviso.style.color = 'var(--txt-3)';
+
+  imgEl.onload = () => {
+    const servicio = detectarServicio(url);
+    aviso.textContent = '✓ Imagen cargada desde ' + servicio + '.';
+    aviso.style.color = 'var(--verde)';
+  };
   imgEl.onerror = () => {
-    aviso.textContent = '⚠️ No se pudo cargar la imagen. Verifica que el archivo sea público en Drive.';
+    if (url.includes('drive.google.com')) {
+      aviso.innerHTML = '⚠️ Google Drive bloqueó la imagen. <strong>Usa ImgBB para garantizar que se vea en todas las PCs.</strong>';
+    } else {
+      aviso.textContent = '⚠️ No se pudo cargar la imagen. Verifica que el link sea público y directo.';
+    }
     aviso.style.color = 'var(--tierra)';
     imgEl.style.display = 'none';
   };
-  imgEl.onload = () => {
-    aviso.textContent = '✓ Imagen cargada correctamente desde Google Drive.';
-    aviso.style.color = 'var(--verde)';
-  };
-  preview.style.display = 'block';
 }
 
 async function saveAdmAnimal(){
@@ -1438,10 +1591,11 @@ async function saveAdmAnimal(){
     if(!r.ok){ sm('erAReg', r.error || 'Error al registrar.', 'e'); return; }
     sm('okAReg','✓ Animal registrado correctamente.');
     ['aNom','aRaz','aEd','aHist','aPes','aEmo'].forEach(x=>g(x).value='');
-    g('aFoto').value = '';
+    g('aFotoArchivo').value = ''; g('aFotoLink').value = '';
     fotoBase64 = null;
     g('fotoPreview').style.display = 'none';
     g('fotoPesoAviso').textContent = '';
+    switchFotoTab('archivo');
     loadAdmList(); loadAnimales();
   }catch(e){ sm('erAReg','Error: ' + e.message,'e'); }
   finally{ bl('bAReg',false); }
@@ -1547,3 +1701,5 @@ window.onload=()=>{
 </script>
 </body>
 </html>
+
+
